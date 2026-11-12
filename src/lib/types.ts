@@ -1,3 +1,5 @@
+import type { Region } from './tax';
+
 export type PersonId = 'p1' | 'p2';
 export type Owner = PersonId | 'shared';
 export type Payer = PersonId | 'joint';
@@ -6,7 +8,7 @@ export type Scope = Owner | 'personal';
 export type Kind = 'expense' | 'savings' | 'income' | 'transfer';
 export type Arrangement = 'joint' | 'hybrid' | 'separate';
 export type SplitMethod = 'income' | 'even' | 'custom';
-export type PayFreq = 'monthly' | 'semimonthly' | 'biweekly';
+export type PayFreq = 'monthly' | 'semimonthly' | 'biweekly' | 'weekly';
 export type AccountType = 'chequing' | 'savings' | 'investment' | 'property' | 'vehicle' | 'credit' | 'loan' | 'mortgage';
 
 export interface Category {
@@ -42,6 +44,12 @@ export interface PaySchedule {
   freq: PayFreq;
   /** Any real payday, as YYYY-MM-DD. */
   anchor: string;
+  /** The two days of the month for semi-monthly pay. 31 means the last day. */
+  days?: [number, number];
+  /** Yearly salary before tax, when take-home is estimated from it. */
+  gross?: number;
+  /** Signature of the paycheque the person confirmed from a statement. */
+  confirmed?: string;
 }
 
 export interface Settings {
@@ -58,6 +66,12 @@ export interface Settings {
   onboarded: boolean;
   remember: boolean;
   pay: Record<PersonId, PaySchedule>;
+  /** Province or territory, for take-home estimates. */
+  region: Region;
+  /** Statement deposits the couple said are not a paycheque. */
+  notPay?: string[];
+  /** Recurring payments found in statements that the couple dismissed. */
+  notBills?: string[];
 }
 
 export interface Bill {
@@ -71,7 +85,9 @@ export interface Bill {
   balance?: number;
   apr?: number;
   targetMonth?: string;
-  /** Months (YYYY-MM) in which this was marked paid. */
+  /** Merchant key from statements. A matching transaction marks the bill paid. */
+  match?: string;
+  /** Months (YYYY-MM) marked paid (true) or explicitly not paid (false). */
   paid: Record<string, boolean>;
 }
 

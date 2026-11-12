@@ -17,9 +17,21 @@ export const METHODS: Record<SplitMethod, string> = {
 
 export const FREQS: Record<PayFreq, string> = {
   biweekly: 'Every two weeks',
-  semimonthly: 'Twice a month (15th and last day)',
+  semimonthly: 'Twice a month',
   monthly: 'Once a month',
+  weekly: 'Every week',
 };
+
+/** Cheques a year for each pay frequency. */
+export const PER_YEAR: Record<PayFreq, number> = { weekly: 52, biweekly: 26, semimonthly: 24, monthly: 12 };
+
+/** Common semi-monthly pay dates. 31 stands for the last day of the month. */
+export const SEMI_DAYS: { value: string; label: string; days: [number, number] }[] = [
+  { value: '15-31', label: '15th and last day', days: [15, 31] },
+  { value: '15-30', label: '15th and 30th', days: [15, 30] },
+  { value: '1-15', label: '1st and 15th', days: [1, 15] },
+  { value: '10-25', label: '10th and 25th', days: [10, 25] },
+];
 
 export const ACCOUNT_TYPES: Record<AccountType, { label: string; icon: string; debt: boolean }> = {
   chequing: { label: 'Chequing', icon: 'wallet', debt: false },
@@ -88,6 +100,7 @@ export function defaultDoc(): Doc {
       p1: '', p2: '', arrangement: 'hybrid', inc1: 0, inc2: 0, splitMethod: 'income', split: 67,
       sav1: 637.35, sav2: 303.75, onboarded: false, remember: true,
       pay: { p1: { freq: 'biweekly', anchor }, p2: { freq: 'biweekly', anchor } },
+      region: 'ON',
     },
     categories: defaultCategories(),
     rules: [],
@@ -112,7 +125,7 @@ export function migrate(raw: any): Doc {
   if (!raw || typeof raw !== 'object') return base;
   const doc: Doc = {
     ...base,
-    settings: { ...base.settings, ...(raw.settings ?? {}), pay: { ...base.settings.pay, ...(raw.settings?.pay ?? {}) } },
+    settings: { ...base.settings, ...(raw.settings ?? {}), pay: { ...base.settings.pay, ...(raw.settings?.pay ?? {}) }, region: raw.settings?.region ?? 'ON' },
     rules: Array.isArray(raw.rules) ? raw.rules : [],
     months: raw.months ?? {},
     bills: Array.isArray(raw.bills) ? raw.bills : base.bills,

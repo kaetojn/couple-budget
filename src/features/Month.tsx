@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from 'jotai';
 import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
-import { LuChevronDown, LuCircleCheck, LuFileText, LuLoaderCircle, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
+import { LuArrowRight, LuChevronDown, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
@@ -10,7 +10,9 @@ import { Card, Empty, Field } from '@/components/ui/card';
 import { Segmented, Switch, TextInput } from '@/components/ui/controls';
 import { Avatar, Count, PERSON_COLOR, useName, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
-import { extractStatement } from '@/lib/ai';
+import { extractStatement, isImage } from '@/lib/ai';
+import { detectRecurring, withoutDuplicates } from '@/lib/detect';
+import { PayPrompts } from './Findings';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { catOf, merchantKey, ownerFor, spendByDay, who } from '@/lib/compute';
@@ -25,8 +27,9 @@ type OwnerFilter = 'all' | Owner;
 const isSpend = (doc: Doc, t: Tx) => !t.exclude && catOf(doc, t.category).kind === 'expense';
 const shortMoney = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : money0(n));
 
-export function Month(_: { go: Go }) {
+export function Month({ go }: { go: Go }) {
   const doc = useAtomValue(docAtom);
+  const recurring = useMemo(() => detectRecurring(doc).length, [doc]);
   const month = useAtomValue(monthAtom);
   const { passcode, demo } = useAtomValue(sessionAtom);
   // A picked day belongs to the month it was picked in, so changing month clears it.
@@ -101,6 +104,15 @@ export function Month(_: { go: Go }) {
           <Button variant="primary" onClick={() => setImporting(true)}><LuUpload />Add statements</Button>
         </div>
       </div>
+
+      <PayPrompts />
+      {recurring > 0 && (
+        <button onClick={() => go('plan')} className="flex animate-rise items-center gap-3 rounded-2xl bg-[#0fa3a3]/10 p-3 text-left text-sm transition hover:bg-[#0fa3a3]/15">
+          <LuRepeat className="shrink-0 text-lg text-[#0b7f7f]" aria-hidden />
+          <span className="flex-1"><strong>{recurring} repeating payment{recurring > 1 ? 's' : ''}</strong> found in your statements. Add them to the checklist in Plan.</span>
+          <LuArrowRight className="shrink-0 text-muted" aria-hidden />
+        </button>
+      )}
 
       <div key={month} className={cn('grid gap-5', dir > 0 && 'animate-slide-in', dir < 0 && 'animate-slide-back')}>
         {!tx.length ? (
@@ -349,7 +361,21 @@ function TxEditor({ tx, month, onDone }: { tx: Tx; month: string; onDone: () => 
   );
 }
 
-interface Job { name: string; payer: Payer; status: 'waiting' | 'reading' | 'done' | 'error'; note?: string }
+interface Job { name: string; payer: Payer; files: File[]; shots: boolean; status: 'waiting' | 'reading' | 'done' | 'error'; note?: string }
+
+/** One job per statement file, and one per batch of up to eight screenshots from the same person. */
+function makeJobs(files: Record<Payer, File[]>, zones: Payer[]): Job[] {
+  const jobs: Job[] = [];
+  for (const payer of zones) {
+    const shots = files[payer].filter(isImage);
+    for (const f of files[payer].filter(f => !isImage(f))) jobs.push({ name: f.name, payer, files: [f], shots: false, status: 'waiting' });
+    for (let i = 0; i < shots.length; i += 8) {
+      const batch = shots.slice(i, i + 8);
+      jobs.push({ name: `${batch.length} screenshot${batch.length > 1 ? 's' : ''}`, payer, files: batch, shots: true, status: 'waiting' });
+    }
+  }
+  return jobs;
+}
 
 function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const doc = useAtomValue(docAtom);
@@ -361,20 +387,23 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [busy, setBusy] = useState(false);
   const zones: Payer[] = doc.settings.arrangement === 'joint' ? ['joint', 'p1', 'p2'] : ['p1', 'p2', 'joint'];
   const count = files.p1.length + files.p2.length + files.joint.length;
+  const reads = makeJobs(files, zones).length;
 
   async function analyze() {
-    const list = zones.flatMap(payer => files[payer].map(file => ({ file, payer })));
-    const state: Job[] = list.map(x => ({ name: x.file.name, payer: x.payer, status: 'waiting' }));
+    const state = makeJobs(files, zones);
     setJobs(state);
     setBusy(true);
     const found: Tx[] = [];
-    for (let i = 0; i < list.length; i++) {
-      state[i] = { ...state[i], status: 'reading' };
+    const stamp = new Date().toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    for (let i = 0; i < state.length; i++) {
+      const job = state[i];
+      state[i] = { ...job, status: 'reading' };
       setJobs([...state]);
       try {
-        const tx = await extractStatement(passcode, doc, list[i].file, list[i].payer, target);
+        const source = job.shots ? `Screenshots, ${stamp}` : job.files[0].name;
+        const tx = await extractStatement(passcode, doc, job.files, job.payer, target, source);
         found.push(...tx);
-        state[i] = { ...state[i], status: 'done', note: `${tx.length} transactions` };
+        state[i] = { ...state[i], status: 'done', note: `${tx.length} transactions${job.shots ? ', may be part of the month' : ''}` };
       } catch (e) {
         state[i] = { ...state[i], status: 'error', note: (e as Error).message };
       }
@@ -383,17 +412,22 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     setBusy(false);
     if (!found.length) return;
     const sources = new Set(found.map(t => t.source));
+    let added = 0;
     updateDoc(d => {
+      // A statement read again replaces its earlier copy; anything already saved from another source is skipped.
       const prior = (d.months[target]?.tx ?? []).filter(t => !sources.has(t.source));
-      d.months[target] = { ...d.months[target], tx: [...prior, ...found].sort((a, b) => a.date.localeCompare(b.date)) };
+      const fresh = withoutDuplicates(prior, found);
+      added = fresh.length;
+      d.months[target] = { ...d.months[target], tx: [...prior, ...fresh].sort((a, b) => a.date.localeCompare(b.date)) };
     });
     setMonth(target);
-    toast(`${found.length} transactions added to ${monthLabel(target)}`);
+    const skipped = found.length - added;
+    toast(`${added} transactions added to ${monthLabel(target)}${skipped ? `, ${skipped} already there` : ''}`);
     if (state.every(j => j.status === 'done')) { setFiles({ p1: [], p2: [], joint: [] }); setJobs([]); onClose(); }
   }
 
   return (
-    <Sheet open={open} onClose={busy ? () => {} : onClose} title="Add statements" footer={<Button variant="primary" size="lg" className="flex-1" busy={busy} disabled={!count || demo} onClick={analyze}>{busy ? 'Reading statements' : count ? `Read ${count} statement${count > 1 ? 's' : ''}` : 'Choose statements first'}</Button>}>
+    <Sheet open={open} onClose={busy ? () => {} : onClose} title="Add statements" footer={<Button variant="primary" size="lg" className="flex-1" busy={busy} disabled={!count || demo} onClick={analyze}>{busy ? 'Reading' : count ? `Read ${count} file${count > 1 ? 's' : ''}` : 'Choose files first'}</Button>}>
       {demo && <p className="rounded-2xl bg-brand-soft p-3 text-sm font-medium text-brand">Reading statements uses Claude, which is off in the sample household.</p>}
       <Field label="Budget month"><TextInput type="month" value={target} onChange={e => e.target.value && setTarget(e.target.value)} /></Field>
       <div className="grid gap-3">
@@ -401,13 +435,13 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
           <div key={payer} className="rounded-2xl border border-line p-2">
             <label className="flex cursor-pointer items-center gap-3 rounded-xl border-[1.5px] border-dashed border-[#b4bccd] p-3 transition-colors hover:border-brand hover:bg-brand-soft/50 active:bg-brand-soft">
               <Avatar id={payer} size={36} />
-              <span className="flex-1"><span className="block font-semibold">{who(doc, payer)}</span><span className="block text-[13px] text-muted">Choose PDF, CSV or text statements</span></span>
+              <span className="flex-1"><span className="block font-semibold">{who(doc, payer)}</span><span className="block text-[13px] text-muted">PDF statements or banking app screenshots</span></span>
               <LuUpload className="text-xl text-muted" aria-hidden />
-              <input type="file" multiple accept=".pdf,.csv,.txt" className="sr-only" onChange={e => { const add = [...(e.target.files ?? [])]; setFiles(f => ({ ...f, [payer]: [...f[payer], ...add] })); e.target.value = ''; }} />
+              <input type="file" multiple accept=".pdf,.csv,.txt,image/*" className="sr-only" onChange={e => { const add = [...(e.target.files ?? [])]; setFiles(f => ({ ...f, [payer]: [...f[payer], ...add] })); e.target.value = ''; }} />
             </label>
             {files[payer].map((f, i) => (
               <div key={i} className="flex items-center gap-2 px-2 pt-2 text-sm">
-                <LuFileText className="shrink-0 text-muted" aria-hidden />
+                {isImage(f) ? <LuImage className="shrink-0 text-muted" aria-hidden /> : <LuFileText className="shrink-0 text-muted" aria-hidden />}
                 <span className="min-w-0 flex-1 truncate">{f.name}</span>
                 <button aria-label={`Remove ${f.name}`} disabled={busy} onClick={() => setFiles(s => ({ ...s, [payer]: s[payer].filter((_, j) => j !== i) }))} className="grid size-8 place-items-center rounded-full text-muted hover:bg-ink/5"><LuX /></button>
               </div>
@@ -415,6 +449,7 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
           </div>
         ))}
       </div>
+      {count > reads && <p className="text-[13px] text-muted">Screenshots from the same person are read together, so overlapping ones are only counted once. {count} files, {reads} read{reads > 1 ? 's' : ''}.</p>}
       {jobs.length > 0 && (
         <ul className="grid gap-2">
           {jobs.map((j, i) => (

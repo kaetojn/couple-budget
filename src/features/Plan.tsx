@@ -16,6 +16,9 @@ import { who } from '@/lib/compute';
 import { FREQS } from '@/lib/defaults';
 import { addMonths, daysIn, money, money0, monthKey, monthLabel, ordinal, uid } from '@/lib/format';
 import { agenda, allocation, billPayment, monthsToClear, paydays } from '@/lib/plan';
+import { isPaid, paidByStatement } from '@/lib/detect';
+import { PayPrompts, RecurringFoundList } from './Findings';
+import { fixAnchor, PayDayField } from './PayFields';
 import { docAtom, monthAtom, toast, updateDoc } from '@/lib/store';
 import type { Bill, Owner, PayFreq, PersonId } from '@/lib/types';
 
@@ -30,7 +33,8 @@ export function Plan(_: { go: Go }) {
   const shown = useLast(editing);
   const items = agenda(doc, month);
   const bills = items.filter(i => i.type === 'bill');
-  const paid = bills.filter(i => i.bill!.paid[month]);
+  const paidNow = (b: Bill) => isPaid(doc, b, month);
+  const paid = bills.filter(i => paidNow(i.bill!));
   const due = bills.reduce((a, i) => a + i.amount, 0);
   const paidSum = paid.reduce((a, i) => a + i.amount, 0);
   const n = daysIn(month);
@@ -38,12 +42,19 @@ export function Plan(_: { go: Go }) {
   const add = (kind: Bill['kind']) => setEditing({ id: '', name: '', amount: 0, dueDay: 1, kind, payer: 'shared', icon: kind === 'debt' ? 'card' : 'repeat', paid: {} });
 
   function toggle(b: Bill) {
+    const fromStatement = !!paidByStatement(doc, b, month);
     updateDoc(d => {
       const t = d.bills.find(x => x.id === b.id);
       if (!t) return;
-      const now = !t.paid[month];
-      if (now) t.paid[month] = true; else delete t.paid[month];
-      if (t.kind === 'debt' && t.balance !== undefined) t.balance = Math.max(0, Math.round((t.balance + (now ? -1 : 1) * billPayment(b, month)) * 100) / 100);
+      const was = t.paid[month];
+      const now = !(was ?? fromStatement);
+      // Keep an explicit untick so a statement match does not tick it again.
+      if (now && !fromStatement) t.paid[month] = true;
+      else if (!now && fromStatement) t.paid[month] = false;
+      else delete t.paid[month];
+      // Ticking a debt by hand records the payment against its balance.
+      const moved = (now && was !== true && !fromStatement) ? -1 : (!now && was === true) ? 1 : 0;
+      if (moved && t.kind === 'debt' && t.balance !== undefined) t.balance = Math.max(0, Math.round((t.balance + moved * billPayment(b, month)) * 100) / 100);
     });
   }
 
@@ -68,7 +79,7 @@ export function Plan(_: { go: Go }) {
           )))}
           {[...new Set(bills.map(b => b.day))].map(d => {
             const same = bills.filter(b => b.day === d);
-            const done = same.every(b => b.bill!.paid[month]);
+            const done = same.every(b => paidNow(b.bill!));
             return (
               <span key={d} className="absolute top-[46px] grid -translate-x-1/2 justify-items-center" style={{ left: `${((d - 0.5) / n) * 100}%` }}>
                 <span className={cn('grid size-6 place-items-center rounded-full text-[11px] font-bold text-white', done ? 'bg-good' : 'bg-ink')}>{done ? <LuCheck /> : same.length}</span>
@@ -79,6 +90,8 @@ export function Plan(_: { go: Go }) {
         </div>
         <p className="text-[13px] text-muted">Circles above the line are paydays. Numbers below are how many payments fall due that day.</p>
       </Card>
+
+      <PayPrompts />
 
       <section>
         <SectionTitle>How each paycheque is spoken for</SectionTitle>
@@ -103,17 +116,19 @@ export function Plan(_: { go: Go }) {
               <button onClick={() => setEditing(a.bill!)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                 <IconTile icon={a.bill!.icon} color={a.bill!.kind === 'debt' ? DEBT_COLOR : BILL_COLOR} />
                 <span className="min-w-0 flex-1">
-                  <span className={cn('block truncate font-semibold', a.bill!.paid[month] && 'text-muted line-through')}>{a.label}</span>
-                  <span className="flex items-center gap-1.5 text-[13px] text-muted"><Avatar id={a.bill!.payer} size={16} />{a.bill!.kind === 'debt' && a.bill!.balance !== undefined ? `${money0(a.bill!.balance)} left to clear` : who(doc, a.bill!.payer)}</span>
+                  <span className={cn('block truncate font-semibold', paidNow(a.bill!) && 'text-muted line-through')}>{a.label}</span>
+                  <span className="flex items-center gap-1.5 text-[13px] text-muted"><Avatar id={a.bill!.payer} size={16} />{a.bill!.paid[month] === undefined && paidByStatement(doc, a.bill!, month) ? <span className="font-medium text-good">Found in statement</span> : a.bill!.kind === 'debt' && a.bill!.balance !== undefined ? `${money0(a.bill!.balance)} left to clear` : who(doc, a.bill!.payer)}</span>
                 </span>
                 <span className="num font-semibold">{money(a.amount)}</span>
               </button>
-              <button onClick={() => toggle(a.bill!)} role="checkbox" aria-checked={!!a.bill!.paid[month]} aria-label={`Mark ${a.label} paid`} className={cn('grid size-9 shrink-0 place-items-center rounded-full border-2 text-lg transition active:scale-90', a.bill!.paid[month] ? 'border-good bg-good text-white' : 'border-line text-transparent hover:border-good')}><LuCheck /></button>
+              <button onClick={() => toggle(a.bill!)} role="checkbox" aria-checked={paidNow(a.bill!)} aria-label={`Mark ${a.label} paid`} className={cn('grid size-9 shrink-0 place-items-center rounded-full border-2 text-lg transition active:scale-90', paidNow(a.bill!) ? 'border-good bg-good text-white' : 'border-line text-transparent hover:border-good')}><LuCheck /></button>
             </div>
           ))}
           {!items.length && <p className="p-4 text-muted">Add your bills and debts to see them against your paydays.</p>}
         </Card>
       </section>
+
+      <RecurringFoundList />
 
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={shown?.id ? `Edit ${shown.kind}` : `New ${shown?.kind ?? 'bill'}`}>
         {shown && <BillEditor key={shown.id || `new-${shown.kind}`} initial={shown} month={month} onDone={() => setEditing(null)} />}
@@ -136,7 +151,7 @@ function PayCard({ person }: { person: PersonId }) {
     { label: 'Joint savings', value: a.savings, color: '#0a8058' },
     { label: a.left >= 0 ? 'Left for you' : 'Short by', value: Math.abs(a.left), color: a.left >= 0 ? '#cbd2e0' : '#f59e0b' },
   ];
-  const setPay = (patch: Partial<typeof pay>) => updateDoc(d => { d.settings.pay[person] = { ...d.settings.pay[person], ...patch }; });
+  const setPay = (patch: Partial<typeof pay>) => updateDoc(d => { d.settings.pay[person] = fixAnchor({ ...d.settings.pay[person], ...patch }); });
 
   return (
     <Card className="grid content-start gap-4">
@@ -158,7 +173,7 @@ function PayCard({ person }: { person: PersonId }) {
       </Field>
       <div className="grid gap-2 sm:grid-cols-2">
         <Field label="Paid"><Select<PayFreq> value={pay.freq} onChange={freq => setPay({ freq })} options={(Object.keys(FREQS) as PayFreq[]).map(value => ({ value, label: FREQS[value] }))} /></Field>
-        {pay.freq !== 'semimonthly' && <Field label="A recent payday"><TextInput type="date" value={pay.anchor} onChange={e => e.target.value && setPay({ anchor: e.target.value })} /></Field>}
+        <PayDayField pay={pay} onChange={setPay} />
       </div>
     </Card>
   );

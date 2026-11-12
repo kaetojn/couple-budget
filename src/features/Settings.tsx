@@ -5,14 +5,16 @@ import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { Button } from '@/components/ui/button';
 import { Card, Field, SectionTitle } from '@/components/ui/card';
-import { MoneyInput, Segmented, Select, Slider, TextInput } from '@/components/ui/controls';
+import { Segmented, Select, Slider, TextInput } from '@/components/ui/controls';
 import { Avatar } from '@/components/ui/misc';
 import { who } from '@/lib/compute';
 import { ARRANGEMENTS, migrate } from '@/lib/defaults';
 import { pct } from '@/lib/format';
 import { applySplit } from '@/lib/plan';
 import { docAtom, eraseDevice, lock, sessionAtom, toast, updateDoc } from '@/lib/store';
+import { REGIONS, type Region } from '@/lib/tax';
 import type { Arrangement, Settings as SettingsType, SplitMethod } from '@/lib/types';
+import { IncomeField } from './PayFields';
 
 export function Settings(_: { go: Go }) {
   const doc = useAtomValue(docAtom);
@@ -49,13 +51,16 @@ export function Settings(_: { go: Go }) {
 
       <section>
         <SectionTitle>The two of you</SectionTitle>
-        <Card className="grid gap-4 sm:grid-cols-2">
-          {(['p1', 'p2'] as const).map(p => (
-            <div key={p} className="grid gap-3">
-              <Field label={p === 'p1' ? 'First partner' : 'Second partner'}><TextInput value={s[p]} onChange={e => set({ [p]: e.target.value })} /></Field>
-              <Field label="Monthly take-home"><MoneyInput label={`${who(doc, p)} monthly take-home`} step={100} value={p === 'p1' ? s.inc1 : s.inc2} onChange={v => set(p === 'p1' ? { inc1: v } : { inc2: v })} /></Field>
-            </div>
-          ))}
+        <Card className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(['p1', 'p2'] as const).map(p => <Field key={p} label={p === 'p1' ? 'First partner' : 'Second partner'}><TextInput value={s[p]} onChange={e => set({ [p]: e.target.value })} /></Field>)}
+          </div>
+          <Field label="Where you live" hint="Used to estimate take-home pay from a salary.">
+            <Select<Region> value={s.region} onChange={region => set({ region })} options={REGIONS.map(r => ({ value: r.value, label: r.label, hint: r.supported ? undefined : 'Take-home estimates coming later' }))} />
+          </Field>
+          <div className="grid gap-3 md:grid-cols-2">
+            {(['p1', 'p2'] as const).map(p => <IncomeField key={`${p}-${s.region}`} person={p} />)}
+          </div>
         </Card>
       </section>
 

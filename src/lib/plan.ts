@@ -1,6 +1,7 @@
 import { catOf, computeMonth, monthsWithData, totalBudget, who } from './compute';
-import { dayOf, daysIn, money, monthLabel, monthsBetween, parseMonth, pct } from './format';
-import type { Bill, Doc, PaySchedule, PersonId, Settings } from './types';
+import { dayOf, daysIn, money, money0, monthLabel, monthsBetween, parseMonth, pct } from './format';
+import { PER_YEAR } from './defaults';
+import type { Bill, Doc, PayFreq, PaySchedule, PersonId, Settings } from './types';
 
 export function applySplit(s: Settings): Settings {
   const total = (+s.inc1 || 0) + (+s.inc2 || 0);
@@ -40,18 +41,24 @@ export const billShare = (doc: Doc, b: Bill, p: PersonId, month: string) =>
 
 export function paydays(s: PaySchedule, month: string): number[] {
   const n = daysIn(month);
-  if (s.freq === 'semimonthly') return [15, n];
+  if (s.freq === 'semimonthly') return [...new Set((s.days ?? [15, 31]).map(d => Math.min(n, d)))].sort((a, b) => a - b);
   if (s.freq === 'monthly') return [Math.min(n, dayOf(s.anchor))];
+  const step = s.freq === 'weekly' ? 7 : 14;
   const first = parseMonth(month);
   const anchor = new Date(`${s.anchor}T12:00:00`);
   const out: number[] = [];
   for (let d = 1; d <= n; d++) {
     const date = new Date(first.getFullYear(), first.getMonth(), d, 12);
     const diff = Math.round((date.getTime() - anchor.getTime()) / 86400000);
-    if (((diff % 14) + 14) % 14 === 0) out.push(d);
+    if (((diff % step) + step) % step === 0) out.push(d);
   }
   return out;
 }
+
+/** Average paycheque, from monthly take-home and how often pay arrives. */
+export const perCheque = (monthly: number, freq: PayFreq) => (monthly * 12) / PER_YEAR[freq];
+/** Monthly take-home from a typical paycheque. */
+export const monthlyFrom = (cheque: number, freq: PayFreq) => (cheque * PER_YEAR[freq]) / 12;
 
 export interface Allocation {
   income: number;
@@ -170,4 +177,65 @@ export function netWorth(doc: Doc) {
   let debts = 0;
   for (const a of doc.accounts) DEBT.has(a.type) ? (debts += Math.abs(+a.balance || 0)) : (assets += +a.balance || 0);
   return { assets, debts, net: assets - debts };
+}
+
+/** True when a category is the budget line for a fixed bill (rent, insurance and so on). */
+export const coveredByBill = (doc: Doc, name: string) => {
+  const c = name.toLowerCase();
+  return doc.bills.some(b => {
+    const n = b.name.trim().toLowerCase();
+    return b.kind === 'bill' && !!n && (c.startsWith(n) || n.startsWith(c));
+  });
+};
+
+export interface Advice {
+  kind: 'trim' | 'save' | 'ok';
+  text: string;
+  /** Applies the advice to a draft document. */
+  apply?: (d: Doc) => void;
+  action?: string;
+}
+
+/**
+ * A suggestion built from the actual bills: trim everyday budgets when someone's share does not fit
+ * their pay, or move part of what is left into joint savings.
+ */
+export function breakdownAdvice(doc: Doc, month: string): Advice {
+  const people: PersonId[] = ['p1', 'p2'];
+  const alloc = people.map(p => ({ p, a: allocation(doc, p, month) }));
+  if (alloc.every(x => !x.a.income)) return { kind: 'ok', text: '' };
+  const flexCats = doc.categories.filter(c => c.kind === 'expense' && c.scope === 'shared' && (+c.budget || 0) > 0 && !coveredByBill(doc, c.name)).sort((a, b) => b.budget - a.budget);
+  const flexTotal = flexCats.reduce((s, c) => s + c.budget, 0);
+  const short = alloc.filter(x => x.a.income > 0 && x.a.left < 0);
+  if (short.length) {
+    // Shrink everyday budgets just enough that the person furthest behind breaks even.
+    const scale = Math.min(...short.map(x => (x.a.flexible > 0 ? Math.max(0, 1 - -x.a.left / x.a.flexible) : 0)));
+    const worst = short.sort((a, b) => a.a.left - b.a.left)[0];
+    if (flexTotal > 0 && scale > 0.3) {
+      const cut = flexTotal * (1 - scale);
+      return {
+        kind: 'trim',
+        text: `${who(doc, worst.p)}'s share comes to ${money0(-worst.a.left)} a month more than their take-home. Trimming everyday budgets like ${flexCats.slice(0, 2).map(c => c.name.toLowerCase()).join(' and ')} by ${Math.round((1 - scale) * 100)}% (${money0(cut)} in total) makes it fit.`,
+        action: `Trim everyday budgets by ${Math.round((1 - scale) * 100)}%`,
+        apply: d => {
+          for (const c of d.categories) if (flexCats.some(f => f.name === c.name)) c.budget = Math.floor((c.budget * scale) / 10) * 10;
+        },
+      };
+    }
+    return { kind: 'trim', text: `${who(doc, worst.p)}'s share of bills and budgets is ${money0(-worst.a.left)} a month more than their take-home. Lower a savings amount, a debt payment or the split so it fits.` };
+  }
+  const roomy = alloc.filter(x => x.a.income > 0 && x.a.left > x.a.income * 0.1);
+  if (roomy.length) {
+    const extra = roomy.map(x => ({ p: x.p, add: Math.floor(x.a.left / 2 / 25) * 25 })).filter(x => x.add > 0);
+    if (extra.length) {
+      const total = extra.reduce((s, x) => s + x.add, 0);
+      return {
+        kind: 'save',
+        text: `After bills and budgets, ${extra.map(x => `${who(doc, x.p)} keeps ${money0(alloc.find(a => a.p === x.p)!.a.left)}`).join(' and ')} a month. Putting half of that into joint savings adds ${money0(total)} a month, ${money0(total * 12)} a year.`,
+        action: `Save ${money0(total)} more a month`,
+        apply: d => { for (const x of extra) x.p === 'p1' ? (d.settings.sav1 = +(d.settings.sav1 + x.add).toFixed(2)) : (d.settings.sav2 = +(d.settings.sav2 + x.add).toFixed(2)); },
+      };
+    }
+  }
+  return { kind: 'ok', text: 'Each of you can cover your share of the bills, budgets and savings, with a little left for personal spending.' };
 }

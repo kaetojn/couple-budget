@@ -13,6 +13,28 @@ const readBase64 = (file: File) =>
     r.readAsDataURL(file);
   });
 
+export const isImage = (f: File) => f.type.startsWith('image/') || /\.(png|jpe?g|webp|heic|heif|gif)$/i.test(f.name);
+
+/** Shrinks a photo or screenshot so its long side is at most 1600px, as JPEG. Claude reads text fine at this size. */
+async function shrinkImage(file: File): Promise<{ data: string; type: string }> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return { data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1], type: 'image/jpeg' };
+  } catch {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error(`${file.name} is an image format this browser cannot open. Save it as a JPEG or PNG.`);
+    return { data: await readBase64(file), type: file.type };
+  }
+}
+
 function extractPrompt(doc: Doc, payer: Payer, month: string) {
   const cats = doc.categories.map(c => `- ${c.name} (${c.kind === 'expense' ? (c.scope === 'shared' ? 'shared' : 'personal') : c.kind})`).join('\n');
   const rules = doc.rules.length ? `\nThe couple has set these rules; follow them:\n${doc.rules.map(r => `- description contains "${r.match}" -> ${r.category}, ${r.owner}`).join('\n')}` : '';
@@ -32,25 +54,35 @@ Reply with JSON only, no prose and no code fence:
 {"transactions":[{"d":"YYYY-MM-DD","t":"description as printed","a":12.34,"c":"category name","o":"shared"}]}`;
 }
 
-export async function extractStatement(passcode: string, doc: Doc, file: File, payer: Payer, month: string): Promise<Tx[]> {
+const screenshots = () => `
+These are screenshots from a banking app, not a full statement. They may overlap or repeat the same transactions: list each transaction once. Include pending transactions. If a date shows no year, use the budget month's year, or the year before when the month is later than the budget month. Today is ${new Date().toLocaleDateString('en-CA')}; use it to turn "Today", "Yesterday" or a weekday into a date.`;
+
+/**
+ * Reads one statement, or a batch of screenshots for the same account, and returns its transactions.
+ * Screenshots go in one request so overlaps between them are caught.
+ */
+export async function extractStatement(passcode: string, doc: Doc, files: File[], payer: Payer, month: string, source: string): Promise<Tx[]> {
   const prompt = extractPrompt(doc, payer, month);
+  const file = files[0];
   const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-  const content = isPdf
-    ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: await readBase64(file) } }, { type: 'text', text: prompt }]
-    : [{ type: 'text', text: `${prompt}\n\nStatement contents:\n${await file.text()}` }];
+  const content = files.every(isImage)
+    ? [...(await Promise.all(files.map(shrinkImage))).map(img => ({ type: 'image', source: { type: 'base64', media_type: img.type, data: img.data } })), { type: 'text', text: prompt + screenshots() }]
+    : isPdf
+      ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: await readBase64(file) } }, { type: 'text', text: prompt }]
+      : [{ type: 'text', text: `${prompt}\n\nStatement contents:\n${await file.text()}` }];
   const out = await api.claude(passcode, content, 'You are a meticulous bookkeeper. You output strict JSON.', 16000);
   let data: { transactions?: any[] };
   try {
     data = parseJson(out.text);
   } catch {
-    throw new Error(out.truncated ? 'This statement is too long for one pass. Split the PDF and try again.' : 'Could not read the result for this statement.');
+    throw new Error(out.truncated ? 'This is too long for one pass. Split the PDF, or add fewer screenshots at a time.' : 'Could not read the result for this statement.');
   }
   return (data.transactions ?? [])
     .filter(t => t && Number.isFinite(+t.a))
     .map(t => {
       const cat = catOf(doc, String(t.c));
       const tx: Tx = {
-        id: uid(), date: String(t.d || ''), desc: String(t.t || ''), amount: +t.a, category: cat.name, paidBy: payer, source: file.name, exclude: false,
+        id: uid(), date: /^\d{4}-\d{2}-\d{2}$/.test(String(t.d)) ? String(t.d) : `${month}-01`, desc: String(t.t || ''), amount: +t.a, category: cat.name, paidBy: payer, source, exclude: false,
         owner: cat.scope === 'p1' || cat.scope === 'p2' ? cat.scope : t.o === 'shared' ? 'shared' : ownerFor({ ...cat, scope: 'personal' }, payer),
       };
       return applyRules(doc, tx);

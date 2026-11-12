@@ -14,6 +14,8 @@ import { addMonths, daysIn, money, money0, monthKey, monthLabel, ordinal } from 
 import { agenda, netWorth, suggestions } from '@/lib/plan';
 import { docAtom, monthAtom } from '@/lib/store';
 import { CheckupSheet } from './CheckupSheet';
+import { PayPrompts } from './Findings';
+import { isPaid } from '@/lib/detect';
 
 export function Home({ go }: { go: Go }) {
   const doc = useAtomValue(docAtom);
@@ -27,7 +29,7 @@ export function Home({ go }: { go: Go }) {
   const series = cumulative(spendByDay(doc, tx, month));
   const n = daysIn(month);
   const cats = doc.categories.filter(c => c.kind === 'expense' && (r.byCat[c.name] || 0) > 0).sort((a, b) => r.byCat[b.name] - r.byCat[a.name]).slice(0, 6);
-  const upcoming = agenda(doc, monthKey()).filter(a => a.day >= today.getDate() && !(a.bill?.paid[monthKey()])).slice(0, 4);
+  const upcoming = agenda(doc, monthKey()).filter(a => a.day >= today.getDate() && !(a.bill && isPaid(doc, a.bill, monthKey()))).slice(0, 4);
   const recent = Array.from({ length: 6 }, (_, i) => addMonths(monthsWithData(doc).pop() ?? month, i - 5));
   const tips = suggestions(doc, month).slice(0, 3);
   const nw = netWorth(doc);
@@ -39,6 +41,8 @@ export function Home({ go }: { go: Go }) {
         <h1 className="text-2xl font-bold md:text-[28px]">{doc.settings.p1} and {doc.settings.p2}</h1>
         <MonthSwitcher />
       </div>
+
+      <PayPrompts />
 
       {tx.length ? (
         <Card className="grid gap-4">

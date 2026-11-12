@@ -1,6 +1,6 @@
 import { useAtomValue } from 'jotai';
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { LuCheck } from 'react-icons/lu';
+import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
+import { LuCheck, LuChevronDown } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
@@ -10,13 +10,15 @@ import { Card, Field } from '@/components/ui/card';
 import { MoneyInput, Segmented, Select, Slider, TextInput } from '@/components/ui/controls';
 import { Avatar, Progress } from '@/components/ui/misc';
 import { cn } from '@/lib/cn';
-import { ARRANGEMENTS, FREQS, METHODS } from '@/lib/defaults';
-import { money, pct } from '@/lib/format';
-import { applySplit, planOf, splitText } from '@/lib/plan';
+import { ARRANGEMENTS, METHODS } from '@/lib/defaults';
+import { money, money0, pct } from '@/lib/format';
+import { allocation, applySplit, billPayment, breakdownAdvice, planOf, splitText } from '@/lib/plan';
+import { isSupported, REGIONS, TAX_YEAR, type Region } from '@/lib/tax';
+import { IncomeField, PaySchedulePicker } from './PayFields';
 import { docAtom, monthAtom, toast, updateDoc } from '@/lib/store';
-import type { Arrangement, PayFreq, PersonId, Settings, SplitMethod } from '@/lib/types';
+import type { Arrangement, PersonId, Settings, SplitMethod } from '@/lib/types';
 
-type Step = 'names' | 'setup' | 'income' | 'split' | 'pay' | 'plan' | 'done';
+type Step = 'names' | 'setup' | 'where' | 'income' | 'pay' | 'split' | 'plan' | 'done';
 const options = <T extends string>(o: Record<T, string | { label: string; hint: string }>) =>
   (Object.entries(o) as [T, string | { label: string; hint: string }][]).map(([value, v]) => (typeof v === 'string' ? { value, label: v } : { value, label: v.label, hint: v.hint }));
 
@@ -28,7 +30,7 @@ export function Onboarding({ go }: { go: Go }) {
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
   const [error, setError] = useState('');
-  const steps: Step[] = ['names', 'setup', 'income', ...(s.arrangement === 'joint' ? [] : (['split'] as Step[])), 'pay', 'plan', 'done'];
+  const steps: Step[] = ['names', 'setup', 'where', 'income', 'pay', ...(s.arrangement === 'joint' ? [] : (['split'] as Step[])), 'plan', 'done'];
   const step = steps[Math.min(index, steps.length - 1)];
   const set = (patch: Partial<Settings>) => updateDoc(d => { d.settings = applySplit({ ...d.settings, ...patch }); });
   const n1 = s.p1 || 'First partner';
@@ -55,17 +57,9 @@ export function Onboarding({ go }: { go: Go }) {
     setIndex(i => i + 1);
   }
 
-  const paySetup = (p: PersonId) => (
-    <div className="grid gap-2 rounded-2xl bg-canvas p-3">
-      <div className="flex items-center gap-2 font-semibold"><Avatar id={p} />{p === 'p1' ? n1 : n2}</div>
-      <Select<PayFreq> value={s.pay[p].freq} onChange={freq => set({ pay: { ...s.pay, [p]: { ...s.pay[p], freq } } })} options={options(FREQS)} />
-      {s.pay[p].freq !== 'semimonthly' && (
-        <Field label="A recent payday">
-          <TextInput type="date" value={s.pay[p].anchor} onChange={e => e.target.value && set({ pay: { ...s.pay, [p]: { ...s.pay[p], anchor: e.target.value } } })} />
-        </Field>
-      )}
-    </div>
-  );
+  const advice = breakdownAdvice(doc, month);
+  const fixed = doc.bills.filter(b => b.kind === 'bill');
+  const people: PersonId[] = ['p1', 'p2'];
 
   const body: Record<Step, ReactNode> = {
     names: (
@@ -82,11 +76,17 @@ export function Onboarding({ go }: { go: Go }) {
         <p key={s.arrangement} className="animate-rise text-muted">{ARRANGEMENTS[s.arrangement].hint}</p>
       </>
     ),
+    where: (
+      <>
+        <Head title="Where do you live?" text="Used to estimate take-home pay from a salary. You can always type take-home in yourself." />
+        <Select<Region> value={s.region} onChange={region => set({ region })} options={REGIONS.map(r => ({ value: r.value, label: r.label, hint: r.supported ? `Take-home estimates for ${TAX_YEAR}` : 'Take-home estimates coming later' }))} />
+        <p key={s.region} className="animate-rise text-muted">{isSupported(s.region) ? 'Next, enter each salary and the app works out federal and provincial tax, CPP and EI.' : 'Estimates are not available here yet. Next, enter what each of you takes home a month.'}</p>
+      </>
+    ),
     income: (
       <>
-        <Head title="What does each of you take home in a month?" text="After tax. Your incomes drive the suggested split and the insights on your home page." />
-        <Field label={n1}><MoneyInput label={`${n1} monthly take-home`} value={s.inc1} onChange={inc1 => set({ inc1 })} step={100} /></Field>
-        <Field label={n2}><MoneyInput label={`${n2} monthly take-home`} value={s.inc2} onChange={inc2 => set({ inc2 })} step={100} /></Field>
+        <Head title="What does each of you earn?" text="Your incomes drive the suggested split, the paycheque plan and the insights on your home page." />
+        {people.map(p => <IncomeField key={p} person={p} />)}
         {plan.income > 0 && <p className="text-muted">Together you take home <strong className="num text-ink">{money(plan.income)}</strong> a month.</p>}
       </>
     ),
@@ -102,27 +102,71 @@ export function Onboarding({ go }: { go: Go }) {
     ),
     pay: (
       <>
-        <Head title="When do you get paid?" text="Paydays line up against your bills in the Plan, so you can see which paycheque covers what." />
-        {paySetup('p1')}
-        {paySetup('p2')}
+        <Head title="How often do you get paid?" text="Paydays line up against your bills, so the Plan shows which paycheque covers what." />
+        {people.map(p => (
+          <div key={p} className="grid gap-3 rounded-2xl bg-canvas p-3">
+            <div className="flex items-center gap-2 font-semibold"><Avatar id={p} />{p === 'p1' ? n1 : n2}</div>
+            <PaySchedulePicker person={p} />
+          </div>
+        ))}
+        <p className="text-[13px] text-muted">Once you add a statement, the app checks these against your actual deposits.</p>
       </>
     ),
     plan: (
       <>
-        <Head title="Set your monthly plan" text="These start from your current numbers. Change any of them now or later." />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={`${n1} to savings`}><MoneyInput label={`${n1} joint savings`} value={s.sav1} onChange={sav1 => set({ sav1 })} /></Field>
-          <Field label={`${n2} to savings`}><MoneyInput label={`${n2} joint savings`} value={s.sav2} onChange={sav2 => set({ sav2 })} /></Field>
+        <Head title="Here is how your pay is spoken for" text="Built from your bills, your shared budgets and your savings. Change anything now or later." />
+        {fixed.length > 0 && (
+          <div className="rounded-2xl bg-canvas p-3">
+            <p className="mb-2 text-[13px] font-semibold text-muted">Fixed bills, {money0(fixed.reduce((a, b) => a + billPayment(b, month), 0))} a month</p>
+            <div className="flex flex-wrap gap-1.5">{fixed.map(b => <span key={b.id} className="num rounded-full bg-surface px-2.5 py-1 text-[13px] font-medium">{b.name} {money0(billPayment(b, month))}</span>)}</div>
+          </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {people.map(p => {
+            const a = allocation(doc, p, month);
+            const parts = [
+              { label: 'Bills', value: a.bills, color: '#4b3fe4' },
+              { label: 'Debt', value: a.debt, color: '#d13438' },
+              { label: 'Everyday', value: a.flexible, color: '#0fa3a3' },
+              { label: 'Savings', value: a.savings, color: '#0a8058' },
+              { label: 'Yours', value: Math.max(0, a.left), color: '#cbd2e0' },
+            ];
+            return (
+              <div key={p} className="grid gap-2 rounded-2xl border border-line p-3">
+                <div className="flex items-center gap-2"><Avatar id={p} size={28} /><span className="flex-1 font-semibold">{p === 'p1' ? n1 : n2}</span><span className="num text-[13px] text-muted">{money0(a.income)}/mo</span></div>
+                <SplitBar parts={parts} height={12} />
+                <dl className="grid grid-cols-[1fr_auto] gap-x-3 text-[13px]">
+                  {parts.slice(0, 4).filter(x => x.value > 0.5).map(x => <Fragment key={x.label}><dt className="flex items-center gap-1.5 text-muted"><span className="size-2 rounded-full" style={{ background: x.color }} />{x.label}</dt><dd className="num text-right">{money0(x.value)}</dd></Fragment>)}
+                  <dt className={cn('font-semibold', a.left < 0 && 'text-bad')}>{a.left < 0 ? 'Short by' : 'Left for you'}</dt><dd className={cn('num text-right font-semibold', a.left < 0 && 'text-bad')}>{money0(Math.abs(a.left))}</dd>
+                </dl>
+              </div>
+            );
+          })}
         </div>
-        <div className="grid max-h-64 gap-2 overflow-y-auto rounded-2xl bg-canvas p-2">
-          {doc.categories.map((c, i) => c.kind === 'expense' && c.budget > 0 && (
-            <div key={c.name} className="flex items-center gap-3">
-              <IconTile icon={c.icon} color={c.color} size="sm" />
-              <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-              <MoneyInput label={`${c.name} budget`} className="h-10 w-32" value={c.budget} onChange={v => updateDoc(d => { d.categories[i].budget = v; })} />
+        {advice.text && (
+          <div key={advice.text} className={cn('grid animate-rise gap-2 rounded-2xl p-3 text-sm', advice.kind === 'trim' ? 'bg-bad/8' : advice.kind === 'save' ? 'bg-good/8' : 'bg-canvas')}>
+            <p>{advice.text}</p>
+            {advice.apply && <Button size="sm" variant={advice.kind === 'trim' ? 'secondary' : 'primary'} className="justify-self-start" onClick={() => { updateDoc(advice.apply!); toast('Plan updated'); }}>{advice.action}</Button>}
+          </div>
+        )}
+        <details className="group rounded-2xl bg-canvas">
+          <summary className="flex cursor-pointer list-none items-center justify-between p-3 font-semibold">Adjust savings and budgets<LuChevronDown className="transition group-open:rotate-180" aria-hidden /></summary>
+          <div className="grid gap-3 px-2 pb-2">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`${n1} to savings`}><MoneyInput label={`${n1} joint savings`} value={s.sav1} onChange={sav1 => set({ sav1 })} /></Field>
+              <Field label={`${n2} to savings`}><MoneyInput label={`${n2} joint savings`} value={s.sav2} onChange={sav2 => set({ sav2 })} /></Field>
             </div>
-          ))}
-        </div>
+            <div className="grid max-h-64 gap-2 overflow-y-auto">
+              {doc.categories.map((c, i) => c.kind === 'expense' && c.budget > 0 && (
+                <div key={c.name} className="flex items-center gap-3">
+                  <IconTile icon={c.icon} color={c.color} size="sm" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                  <MoneyInput label={`${c.name} budget`} className="h-10 w-32" value={c.budget} onChange={v => updateDoc(d => { d.categories[i].budget = v; })} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </details>
         <Progress value={plan.planned} max={plan.income} />
         <p className={cn(plan.free < 0 ? 'font-semibold text-bad' : 'text-muted')}>{money(plan.planned)} planned of {money(plan.income)} take-home. {plan.free < 0 ? `${money(-plan.free)} over.` : `${money(plan.free)} left over.`}</p>
       </>
