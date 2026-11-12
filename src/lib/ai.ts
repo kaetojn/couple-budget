@@ -1,4 +1,6 @@
 import { api, parseJson } from './api';
+import { accountLabel, cardChecks, fundingChecks } from './accounts';
+import { crossText, sharedCheck, shortText } from './shared';
 import { applyRules, catOf, computeMonth, merchantKey, ownerFor, who } from './compute';
 import { ARRANGEMENTS, METHODS } from './defaults';
 import { monthLabel, uid } from './format';
@@ -46,12 +48,17 @@ ${rules}
 
 Rules:
 - "a" is the amount in dollars: positive when money leaves the account (purchases, debits, withdrawals, fees, interest charged), negative when money comes in (deposits, refunds, payments received on a credit card).
-- Use "Transfer" for credit card payments, moves between the couple's own accounts and e-transfers between the two partners. Use "Joint savings" for contributions to a joint savings account. Use "Income" for payroll and other deposits.
+- Use "Transfer" for credit card payments, moves between a partner's own accounts and e-transfers between the two partners. Use "Joint account top-up" for money a partner moves into the couple's joint chequing account (and for those deposits arriving on the joint account's own statement). Use "Joint savings" for contributions to a joint savings account. Use "Income" for payroll and other deposits.
 - "o" is "shared" when the cost belongs to the household, otherwise "personal".
 - Skip opening and closing balances and summary lines. Do not invent transactions.
 
+Also describe the account the statement is for in "account". Use null for anything not shown:
+- "name": a short name such as "TD Chequing" or "CIBC Visa"; "institution": the bank; "type": "chequing", "savings", "credit" or "loan"; "last4": the last four digits of the account or card number.
+- "balance": the closing balance on the statement (or the current balance shown), as a positive number. For a credit card or loan it is the amount owed.
+- "end": the statement end date as YYYY-MM-DD. For credit cards also "due" (payment due date, YYYY-MM-DD) and "min" (minimum payment).
+
 Reply with JSON only, no prose and no code fence:
-{"transactions":[{"d":"YYYY-MM-DD","t":"description as printed","a":12.34,"c":"category name","o":"shared"}]}`;
+{"account":{"name":"TD Chequing","institution":"TD","type":"chequing","last4":"1234","balance":1520.11,"end":"YYYY-MM-DD","due":null,"min":null},"transactions":[{"d":"YYYY-MM-DD","t":"description as printed","a":12.34,"c":"category name","o":"shared"}]}`;
 }
 
 const screenshots = () => `
@@ -61,7 +68,11 @@ These are screenshots from a banking app, not a full statement. They may overlap
  * Reads one statement, or a batch of screenshots for the same account, and returns its transactions.
  * Screenshots go in one request so overlaps between them are caught.
  */
-export async function extractStatement(passcode: string, doc: Doc, files: File[], payer: Payer, month: string, source: string): Promise<Tx[]> {
+export interface StatementAccount {
+  name?: string; institution?: string; type?: string; last4?: string; balance?: number; end?: string; due?: string; min?: number;
+}
+
+export async function extractStatement(passcode: string, doc: Doc, files: File[], payer: Payer, month: string, source: string): Promise<{ tx: Tx[]; account: StatementAccount | null }> {
   const prompt = extractPrompt(doc, payer, month);
   const file = files[0];
   const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
@@ -71,22 +82,30 @@ export async function extractStatement(passcode: string, doc: Doc, files: File[]
       ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: await readBase64(file) } }, { type: 'text', text: prompt }]
       : [{ type: 'text', text: `${prompt}\n\nStatement contents:\n${await file.text()}` }];
   const out = await api.claude(passcode, content, 'You are a meticulous bookkeeper. You output strict JSON.', 16000);
-  let data: { transactions?: any[] };
+  let data: { transactions?: any[]; account?: any };
   try {
     data = parseJson(out.text);
   } catch {
     throw new Error(out.truncated ? 'This is too long for one pass. Split the PDF, or add fewer screenshots at a time.' : 'Could not read the result for this statement.');
   }
-  return (data.transactions ?? [])
+  const tx = (data.transactions ?? [])
     .filter(t => t && Number.isFinite(+t.a))
     .map(t => {
       const cat = catOf(doc, String(t.c));
-      const tx: Tx = {
+      const row: Tx = {
         id: uid(), date: /^\d{4}-\d{2}-\d{2}$/.test(String(t.d)) ? String(t.d) : `${month}-01`, desc: String(t.t || ''), amount: +t.a, category: cat.name, paidBy: payer, source, exclude: false,
         owner: cat.scope === 'p1' || cat.scope === 'p2' ? cat.scope : t.o === 'shared' ? 'shared' : ownerFor({ ...cat, scope: 'personal' }, payer),
       };
-      return applyRules(doc, tx);
+      return applyRules(doc, row);
     });
+  const a = data.account && typeof data.account === 'object' ? data.account : null;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const num = (v: unknown) => (v !== null && v !== '' && Number.isFinite(+(v as number)) ? Math.abs(+(v as number)) : undefined);
+  const account: StatementAccount | null = a ? {
+    name: str(a.name), institution: str(a.institution), type: str(a.type), last4: str(a.last4)?.replace(/\D/g, '').slice(-4) || undefined,
+    balance: num(a.balance), end: /^\d{4}-\d{2}-\d{2}$/.test(a.end) ? a.end : undefined, due: /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : undefined, min: num(a.min),
+  } : null;
+  return { tx, account };
 }
 
 /** Asks Claude for a short financial check-up built from the plan, the month and the balance sheet. */
@@ -111,9 +130,18 @@ Take-home: ${s.p1} ${incomeOf(doc, 'p1')}, ${s.p2} ${incomeOf(doc, 'p2')}.
 Plan: budgets ${p.budget.toFixed(0)}, joint savings ${p.savings.toFixed(0)}, debt payments ${p.debt.toFixed(0)}, unassigned ${p.free.toFixed(0)}.
 ${tx.length ? `${monthLabel(month)}: spent ${r.total.toFixed(0)} of ${r.budget.toFixed(0)} budgeted. Shared ${r.shared.toFixed(0)}, ${s.p1} personal ${r.pers.p1.toFixed(0)}, ${s.p2} personal ${r.pers.p2.toFixed(0)}.\nBy category:\n${cats}\nTop merchants:\n${top}` : 'No statements have been added for this month yet.'}
 ${debts ? `Debts:\n${debts}` : 'No debts recorded.'}
-${doc.accounts.length ? `Net worth: assets ${nw.assets.toFixed(0)}, debts ${nw.debts.toFixed(0)}.` : 'No accounts recorded for net worth.'}
+${(() => {
+  const c = sharedCheck(doc, month);
+  const lines = [
+    ...(c.applies && c.short ? [shortText(doc, c, c.short)] : []),
+    ...(c.applies ? c.cross.map(g => crossText(doc, g).what) : []),
+    ...cardChecks(doc).filter(x => x.status !== 'paid').map(x => `${accountLabel(x.account)}: ${x.text}`),
+    ...fundingChecks(doc, month).map(f => f.text),
+  ];
+  return lines.length ? `Things the app flagged:\n${lines.join('\n')}\n` : '';
+})()}${doc.accounts.length ? `Net worth: assets ${nw.assets.toFixed(0)}, debts ${nw.debts.toFixed(0)}.` : 'No accounts recorded for net worth.'}
 
-Tailor the advice to how they manage money and to each partner's income. Use real numbers. Be specific and plain, no jargon.
+Tailor the advice to how they manage money and to each partner's income. Never frame shared costs as one partner owing the other; gaps are closed by topping up the joint account. Use real numbers. Be specific and plain, no jargon.
 Reply with JSON only:
 {"headline":"one sentence on their overall position","wins":["up to 3 things going well"],"watch":["up to 3 things to keep an eye on"],"actions":["up to 3 concrete next steps"]}`;
   const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken household finance coach. You output strict JSON.', 1500);

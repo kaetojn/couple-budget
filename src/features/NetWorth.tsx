@@ -12,10 +12,11 @@ import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { useLast } from '@/lib/hooks';
 import { ACCOUNT_TYPES } from '@/lib/defaults';
-import { money, money0, monthLabel, uid } from '@/lib/format';
+import { dayLabel, money, money0, monthLabel, uid } from '@/lib/format';
 import { netWorth } from '@/lib/plan';
 import { docAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
 import type { Account, AccountType, Owner } from '@/lib/types';
+import { cardChecks } from '@/lib/accounts';
 
 const TYPE_COLOR: Record<AccountType, string> = { chequing: '#3b82f6', savings: '#12a150', investment: '#8b5cf6', property: '#4b3fe4', vehicle: '#0fa3a3', credit: '#e5484d', loan: '#ec8a2f', mortgage: '#d946ef' };
 
@@ -24,6 +25,7 @@ export function NetWorth(_: { go: Go }) {
   const [editing, setEditing] = useState<Account | null>(null);
   const shown = useLast(editing);
   const nw = netWorth(doc);
+  const cards = new Map(cardChecks(doc).map(c => [c.account.id, c]));
   const months = Object.keys(doc.snapshots).sort();
   const series = months.map(m => doc.snapshots[m].assets - doc.snapshots[m].debts);
   const change = series.length > 1 ? series[series.length - 1] - series[0] : 0;
@@ -72,7 +74,7 @@ export function NetWorth(_: { go: Go }) {
                 {group(debt).map(a => (
                   <button key={a.id} onClick={() => setEditing(a)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition first:rounded-t-3xl last:rounded-b-3xl hover:bg-canvas">
                     <IconTile icon={ACCOUNT_TYPES[a.type].icon} color={TYPE_COLOR[a.type]} />
-                    <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{a.name}</span><span className="block text-[13px] text-muted">{ACCOUNT_TYPES[a.type].label}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{a.name}</span><span className="block truncate text-[13px] text-muted">{[ACCOUNT_TYPES[a.type].label, a.last4 && `••${a.last4}`, a.asOf && `from statement ${dayLabel(a.asOf)}`].filter(Boolean).join(' · ')}</span>{cards.get(a.id) && <span className={cn('block text-[13px] font-medium', cards.get(a.id)!.status === 'paid' ? 'text-good' : cards.get(a.id)!.status === 'late' ? 'text-bad' : 'text-warn')}>{cards.get(a.id)!.text}</span>}</span>
                     <span className="num font-semibold">{money(a.balance)}</span>
                     <Avatar id={a.owner} />
                   </button>

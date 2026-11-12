@@ -1,4 +1,5 @@
-import { computeMonth, settleText, who } from './compute';
+import { computeMonth, who } from './compute';
+import { sharedCheck, sharedSummary } from './shared';
 import { monthLabel } from './format';
 import type { Doc } from './types';
 
@@ -26,7 +27,7 @@ export function sheetRows(doc: Doc, month: string) {
     ['Shared spending', n(r.shared)],
     [`${who(doc, 'p1')} personal`, n(r.pers.p1)],
     [`${who(doc, 'p2')} personal`, n(r.pers.p2)],
-    ['Settle-up', settleText(doc, r)],
+    ['Shared costs check', sharedSummary(doc, sharedCheck(doc, month))],
     [`${who(doc, 'p1')} joint savings`, n(r.sav.p1), 'target', +doc.settings.sav1],
     [`${who(doc, 'p2')} joint savings`, n(r.sav.p2), 'target', +doc.settings.sav2],
   );

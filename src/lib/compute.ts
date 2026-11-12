@@ -48,8 +48,6 @@ export interface MonthTotals {
   sav: Record<Payer, number>;
   inc: Record<Payer, number>;
   income: number;
-  fair: Record<PersonId, number>;
-  settle: null | { from: PersonId; to: PersonId; amount: number };
   budget: number;
   count: number;
 }
@@ -57,13 +55,11 @@ export interface MonthTotals {
 export const totalBudget = (doc: Doc) => doc.categories.filter(c => c.kind === 'expense').reduce((a, c) => a + (+c.budget || 0), 0);
 
 export function computeMonth(doc: Doc, txs: Tx[]): MonthTotals {
-  const p1share = doc.settings.split / 100;
   const r: MonthTotals = {
     byCat: {}, total: 0, shared: 0, pers: { p1: 0, p2: 0 }, sharedPaid: { p1: 0, p2: 0, joint: 0 },
-    sav: { p1: 0, p2: 0, joint: 0 }, inc: { p1: 0, p2: 0, joint: 0 }, income: 0, fair: { p1: 0, p2: 0 },
-    settle: null, budget: totalBudget(doc), count: 0,
+    sav: { p1: 0, p2: 0, joint: 0 }, inc: { p1: 0, p2: 0, joint: 0 }, income: 0,
+    budget: totalBudget(doc), count: 0,
   };
-  let cross = 0;
   for (const t of txs) {
     if (t.exclude) continue;
     const c = catOf(doc, t.category);
@@ -78,21 +74,10 @@ export function computeMonth(doc: Doc, txs: Tx[]): MonthTotals {
       r.sharedPaid[t.paidBy] += t.amount;
     } else {
       r.pers[t.owner] += t.amount;
-      if (t.owner === 'p2' && t.paidBy === 'p1') cross += t.amount;
-      if (t.owner === 'p1' && t.paidBy === 'p2') cross -= t.amount;
     }
-  }
-  const pool = r.sharedPaid.p1 + r.sharedPaid.p2;
-  r.fair = { p1: pool * p1share, p2: pool * (1 - p1share) };
-  const diff = r.sharedPaid.p1 - r.fair.p1 + cross;
-  if (doc.settings.arrangement !== 'joint' && Math.abs(diff) >= 0.005) {
-    r.settle = diff > 0 ? { from: 'p2', to: 'p1', amount: diff } : { from: 'p1', to: 'p2', amount: -diff };
   }
   return r;
 }
-
-export const settleText = (doc: Doc, r: MonthTotals) =>
-  r.settle ? `${who(doc, r.settle.from)} owes ${who(doc, r.settle.to)} ${money(r.settle.amount)}` : 'You are even';
 
 const isSpend = (doc: Doc, t: Tx) => !t.exclude && catOf(doc, t.category).kind === 'expense';
 

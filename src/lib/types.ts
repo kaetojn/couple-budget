@@ -32,6 +32,10 @@ export interface Tx {
   paidBy: Payer;
   source: string;
   exclude: boolean;
+  /** Id of the account (in Net Worth) the statement belongs to. */
+  account?: string;
+  /** Reviewed in the shared costs check and left as is. */
+  ok?: boolean;
 }
 
 export interface Rule {
@@ -97,6 +101,12 @@ export interface Account {
   type: AccountType;
   owner: Owner;
   balance: number;
+  institution?: string;
+  last4?: string;
+  /** Date of the statement the balance came from, as YYYY-MM-DD. */
+  asOf?: string;
+  /** For credit cards: what the latest statement asks to be paid. */
+  due?: { balance: number; min?: number; date?: string; end: string };
 }
 
 export interface Checkup {

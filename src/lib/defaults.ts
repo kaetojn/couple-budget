@@ -4,9 +4,9 @@ import { uid } from './format';
 export const COLORS = ['#4B3FE4', '#E8508B', '#0FA3A3', '#F59E0B', '#12A150', '#E5484D', '#3B82F6', '#8B5CF6', '#EC8A2F', '#14B8A6', '#64748B', '#D946EF'];
 
 export const ARRANGEMENTS: Record<Arrangement, { label: string; hint: string }> = {
-  joint: { label: 'One joint account', hint: 'Everything is paid from one shared account, so there is nothing to settle between you.' },
-  hybrid: { label: 'Separate accounts, shared expenses', hint: 'Each of you pays from your own account. Shared costs are evened out with a monthly settle-up.' },
-  separate: { label: 'Fully separate, we split the bills', hint: 'You keep finances apart and divide specific bills. The settle-up shows who owes what.' },
+  joint: { label: 'One joint account', hint: 'Everything is paid from one shared account, so there is nothing to balance between you.' },
+  hybrid: { label: 'Separate accounts, shared expenses', hint: 'Shared bills come from a joint account or your own. Each month the app checks that each of you put in your share.' },
+  separate: { label: 'Fully separate, we split the bills', hint: 'You keep finances apart and each look after certain bills. The app flags anything paid by the wrong person.' },
 };
 
 export const METHODS: Record<SplitMethod, string> = {
@@ -72,7 +72,11 @@ export const defaultCategories = (): Category[] => [
   { name: 'Joint savings', budget: 0, scope: 'shared', kind: 'savings', icon: 'piggy', color: '#12A150', locked: true },
   { name: 'Income', budget: 0, scope: 'personal', kind: 'income', icon: 'banknote', color: '#12A150', locked: true },
   { name: 'Transfer', budget: 0, scope: 'personal', kind: 'transfer', icon: 'swap', color: '#64748B', locked: true },
+  { name: JOINT_TOPUP, budget: 0, scope: 'shared', kind: 'transfer', icon: 'swap', color: '#0FA3A3', locked: true },
 ];
+
+/** Category for money a partner moves into the couple's joint account. */
+export const JOINT_TOPUP = 'Joint account top-up';
 
 const bill = (name: string, amount: number, dueDay: number, icon: string): Bill => ({ id: uid(), name, amount, dueDay, kind: 'bill', payer: 'shared', icon, paid: {} });
 
@@ -136,6 +140,7 @@ export function migrate(raw: any): Doc {
   if (Array.isArray(raw.categories) && raw.categories.length) {
     doc.categories = raw.categories.map((c: any, i: number) => ({ ...c, icon: c.icon ?? guessIcon(c.name), color: c.color ?? COLORS[i % COLORS.length] }));
   }
+  if (!doc.categories.some(c => c.name === JOINT_TOPUP)) doc.categories.push(defaultCategories().find(c => c.name === JOINT_TOPUP)!);
   if (raw.version !== 2) {
     for (const [m, h] of Object.entries<any>(raw.history ?? {})) doc.months[m] = { tx: h.tx ?? [] };
     if (raw.cur?.tx?.length) doc.months[raw.cur.month] = { tx: raw.cur.tx };

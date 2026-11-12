@@ -50,6 +50,9 @@
   button, [role="button"], select, summary { cursor: pointer; }
   input[type="number"] { -moz-appearance: textfield; }
   input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  /* iOS gives date and month inputs a fixed minimum width that overflows narrow cards. */
+  input[type="date"], input[type="month"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; }
+  input[type="date"]::-webkit-date-and-time-value, input[type="month"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
 }
 
 @utility num { font-variant-numeric: tabular-nums; }

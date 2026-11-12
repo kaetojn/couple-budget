@@ -136,7 +136,7 @@ export function suggestions(doc: Doc, month: string): string[] {
   const is = Math.round(p.incomeShare);
   const fair = `${is}/${100 - is}`;
   if (s.arrangement === 'joint') {
-    out.push('With one joint account there is no settle-up. Personal categories show whether one of you is outspending the other.');
+    out.push('With one joint account there is nothing to balance. Personal categories show whether one of you is outspending the other.');
   } else if (s.splitMethod === 'income') {
     out.push(`Your ${splitText(s)} split follows your incomes, so shared costs take the same ${pct((p.sharedBudget / p.income) * 100)} of each paycheque.`);
   } else if (Math.abs(s.split - p.incomeShare) > 5) {

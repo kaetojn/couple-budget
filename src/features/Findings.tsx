@@ -12,6 +12,7 @@ import { detectRecurring, freqWord, payToConfirm, type PayFound, type RecurringF
 import { dayLabel, money, money0, ordinal, uid } from '@/lib/format';
 import { applySplit, incomeOf, monthlyFrom } from '@/lib/plan';
 import { docAtom, toast, updateDoc } from '@/lib/store';
+import { accountLabel, payAccounts } from '@/lib/accounts';
 import type { Bill, PayFreq } from '@/lib/types';
 
 /** "Is this your paycheque?" cards, one per partner whose statements show pay that has not been confirmed. */
@@ -32,6 +33,7 @@ function PayPrompt({ found }: { found: PayFound }) {
   const entered = incomeOf(doc, found.person);
   const monthly = monthlyFrom(cheque, freq);
   const gap = monthly - entered;
+  const lands = payAccounts(doc)[found.person];
 
   function accept() {
     updateDoc(d => {
@@ -58,6 +60,7 @@ function PayPrompt({ found }: { found: PayFound }) {
         <div className="min-w-0 flex-1">
           <p className="font-bold">Is this {name}'s paycheque?</p>
           <p className="truncate text-[13px] text-muted">{found.label} · seen {found.count} time{found.count > 1 ? 's' : ''}{found.last ? `, last on ${dayLabel(found.last)}` : ''}</p>
+          {lands && <p className="truncate text-[13px] text-muted">Direct deposit into {accountLabel(lands)}</p>}
         </div>
       </div>
       {editing ? (

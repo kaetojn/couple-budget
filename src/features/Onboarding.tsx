@@ -64,14 +64,14 @@ export function Onboarding({ go }: { go: Go }) {
   const body: Record<Step, ReactNode> = {
     names: (
       <>
-        <Head title="First, what are your names?" text="They label accounts, shares and the settle-up." />
+        <Head title="First, what are your names?" text="They label accounts, shares and who looks after which costs." />
         <Field label="First partner"><TextInput autoFocus value={s.p1} onChange={e => set({ p1: e.target.value })} autoComplete="off" /></Field>
         <Field label="Second partner"><TextInput value={s.p2} onChange={e => set({ p2: e.target.value })} autoComplete="off" /></Field>
       </>
     ),
     setup: (
       <>
-        <Head title={`How do ${n1} and ${n2} manage money?`} text="This decides whether there is a settle-up and how advice is worded." />
+        <Head title={`How do ${n1} and ${n2} manage money?`} text="This decides how shared costs are checked and how advice is worded." />
         <Select<Arrangement> value={s.arrangement} onChange={arrangement => set({ arrangement })} options={options(ARRANGEMENTS)} />
         <p key={s.arrangement} className="animate-rise text-muted">{ARRANGEMENTS[s.arrangement].hint}</p>
       </>

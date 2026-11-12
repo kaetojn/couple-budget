@@ -17,6 +17,7 @@ import { FREQS } from '@/lib/defaults';
 import { addMonths, daysIn, money, money0, monthKey, monthLabel, ordinal, uid } from '@/lib/format';
 import { agenda, allocation, billPayment, monthsToClear, paydays } from '@/lib/plan';
 import { isPaid, paidByStatement } from '@/lib/detect';
+import { accountLabel, cardChecks, fundingChecks } from '@/lib/accounts';
 import { PayPrompts, RecurringFoundList } from './Findings';
 import { fixAnchor, PayDayField } from './PayFields';
 import { docAtom, monthAtom, toast, updateDoc } from '@/lib/store';
@@ -128,6 +129,8 @@ export function Plan(_: { go: Go }) {
         </Card>
       </section>
 
+      <AccountChecks />
+
       <RecurringFoundList />
 
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={shown?.id ? `Edit ${shown.kind}` : `New ${shown?.kind ?? 'bill'}`}>
@@ -232,5 +235,41 @@ function BillEditor({ initial, month, onDone }: { initial: Bill; month: string; 
         <Button variant="primary" size="lg" className="flex-1" onClick={save}>Save</Button>
       </div>
     </>
+  );
+}
+
+/** Card balances waiting on a payment, and accounts that pay bills but get no pay. */
+function AccountChecks() {
+  const doc = useAtomValue(docAtom);
+  const month = useAtomValue(monthAtom);
+  const cards = cardChecks(doc);
+  const funding = fundingChecks(doc, month);
+  if (!cards.length && !funding.length) return null;
+  const tone = { paid: 'text-good', min: 'text-warn', due: 'text-warn', late: 'text-bad' } as const;
+  return (
+    <section>
+      <SectionTitle>Accounts to check</SectionTitle>
+      <Card className="divide-y divide-line p-0">
+        {cards.map(c => (
+          <div key={c.account.id} className="flex items-start gap-3 px-4 py-3">
+            <IconTile icon="card" color={c.status === 'paid' ? '#0a8058' : c.status === 'late' ? DEBT_COLOR : '#b45309'} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 font-semibold"><span className="truncate">{accountLabel(c.account)}</span><Avatar id={c.account.owner} size={16} /></p>
+              <p className={cn('text-[13px] font-medium', tone[c.status])}>{c.text}</p>
+            </div>
+          </div>
+        ))}
+        {funding.map(f => (
+          <div key={f.account.id} className="flex items-start gap-3 px-4 py-3">
+            <IconTile icon="wallet" color="#b45309" />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 font-semibold"><span className="truncate">{accountLabel(f.account)}</span><Avatar id={f.account.owner} size={16} /></p>
+              <p className="text-[13px] text-muted">{f.text}</p>
+            </div>
+          </div>
+        ))}
+      </Card>
+      <p className="mt-2 text-[13px] text-muted">Balances and due dates come from the statements you add. Edit an account in Net worth if something is off.</p>
+    </section>
   );
 }

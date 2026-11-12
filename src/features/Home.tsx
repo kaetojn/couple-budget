@@ -9,7 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, Empty, SectionTitle } from '@/components/ui/card';
 import { Avatar, Count, Progress } from '@/components/ui/misc';
 import { cn } from '@/lib/cn';
-import { computeMonth, cumulative, monthsWithData, settleText, spendByDay } from '@/lib/compute';
+import { computeMonth, cumulative, monthsWithData, spendByDay } from '@/lib/compute';
+import { sharedCheck, sharedSummary } from '@/lib/shared';
+import { accountLabel, cardChecks, fundingChecks } from '@/lib/accounts';
+import { SharedSheet } from './SharedSheet';
 import { addMonths, daysIn, money, money0, monthKey, monthLabel, ordinal } from '@/lib/format';
 import { agenda, netWorth, suggestions } from '@/lib/plan';
 import { docAtom, monthAtom } from '@/lib/store';
@@ -21,6 +24,7 @@ export function Home({ go }: { go: Go }) {
   const doc = useAtomValue(docAtom);
   const [month, setMonth] = useAtom(monthAtom);
   const [checkup, setCheckup] = useState(false);
+  const [review, setReview] = useState(false);
   const tx = doc.months[month]?.tx ?? [];
   const r = computeMonth(doc, tx);
   const left = r.budget - r.total;
@@ -31,9 +35,14 @@ export function Home({ go }: { go: Go }) {
   const cats = doc.categories.filter(c => c.kind === 'expense' && (r.byCat[c.name] || 0) > 0).sort((a, b) => r.byCat[b.name] - r.byCat[a.name]).slice(0, 6);
   const upcoming = agenda(doc, monthKey()).filter(a => a.day >= today.getDate() && !(a.bill && isPaid(doc, a.bill, monthKey()))).slice(0, 4);
   const recent = Array.from({ length: 6 }, (_, i) => addMonths(monthsWithData(doc).pop() ?? month, i - 5));
-  const tips = suggestions(doc, month).slice(0, 3);
+  const alerts = [
+    ...cardChecks(doc).filter(c => c.status !== 'paid').map(c => `${accountLabel(c.account)}: ${c.text}`),
+    ...fundingChecks(doc, month).map(f => f.text),
+  ];
+  const tips = [...alerts, ...suggestions(doc, month)].slice(0, Math.max(3, alerts.length + 1));
   const nw = netWorth(doc);
   const joint = doc.settings.arrangement === 'joint';
+  const shared = sharedCheck(doc, month);
 
   return (
     <div className="stagger grid gap-6">
@@ -63,9 +72,12 @@ export function Home({ go }: { go: Go }) {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="grid content-between gap-3 border-brand bg-brand text-white">
-          <p className="text-white/75">{joint ? 'Shared spending' : 'Settle-up'}</p>
-          <Count value={joint ? r.shared : r.settle?.amount ?? 0} format={money} className="display text-3xl font-bold" />
-          <p className="text-[15px] font-medium text-white/90">{joint ? 'One joint account, so nothing to settle.' : tx.length ? settleText(doc, r) : 'Shows once statements are added.'}</p>
+          <p className="text-white/75">{joint ? 'Shared spending' : 'Shared costs'}</p>
+          {joint ? <Count value={r.shared} format={money} className="display text-3xl font-bold" /> : (
+            <p className="display text-3xl font-bold">{!shared.applies ? '—' : shared.issues ? `${shared.issues} to review` : 'On track'}</p>
+          )}
+          <p className="text-[15px] font-medium text-white/90">{joint ? 'One joint account, so there is nothing to balance.' : sharedSummary(doc, shared)}</p>
+          {!joint && shared.applies && <Button className="justify-self-start border-0 bg-white/15 text-white hover:bg-white/25" onClick={() => setReview(true)}>{shared.issues ? 'See what to check' : 'See the breakdown'}</Button>}
         </Card>
         <Card className="grid content-between gap-3">
           <span className="grid size-11 place-items-center rounded-2xl bg-brand-soft text-xl text-brand"><LuStethoscope /></span>
@@ -126,12 +138,13 @@ export function Home({ go }: { go: Go }) {
 
       {tips.length > 0 && (
         <section>
-          <SectionTitle>Based on your incomes and setup</SectionTitle>
+          <SectionTitle>Worth a look</SectionTitle>
           <Card><ul className="grid gap-3">{tips.map((t, i) => <li key={i} className="flex gap-3 leading-snug"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />{t}</li>)}</ul></Card>
         </section>
       )}
 
       <CheckupSheet open={checkup} onClose={() => setCheckup(false)} />
+      <SharedSheet open={review} onClose={() => setReview(false)} />
     </div>
   );
 }

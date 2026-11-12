@@ -10,7 +10,8 @@ import { Card, Empty, Field } from '@/components/ui/card';
 import { Segmented, Switch, TextInput } from '@/components/ui/controls';
 import { Avatar, Count, PERSON_COLOR, useName, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
-import { extractStatement, isImage } from '@/lib/ai';
+import { extractStatement, isImage, type StatementAccount } from '@/lib/ai';
+import { upsertAccount } from '@/lib/accounts';
 import { detectRecurring, withoutDuplicates } from '@/lib/detect';
 import { PayPrompts } from './Findings';
 import { api } from '@/lib/api';
@@ -19,7 +20,7 @@ import { catOf, merchantKey, ownerFor, spendByDay, who } from '@/lib/compute';
 import { dayLabel, dayOf, money, money0, monthKey, monthLabel, parseMonth } from '@/lib/format';
 import { sheetRows } from '@/lib/export';
 import { useLast } from '@/lib/hooks';
-import { docAtom, monthAtom, sessionAtom, toast, updateDoc } from '@/lib/store';
+import { docAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
 import type { Category, Doc, Owner, Payer, Tx } from '@/lib/types';
 
 type OwnerFilter = 'all' | Owner;
@@ -394,6 +395,7 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     setJobs(state);
     setBusy(true);
     const found: Tx[] = [];
+    const accounts: { account: StatementAccount | null; payer: Payer; tx: Tx[] }[] = [];
     const stamp = new Date().toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     for (let i = 0; i < state.length; i++) {
       const job = state[i];
@@ -401,8 +403,9 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
       setJobs([...state]);
       try {
         const source = job.shots ? `Screenshots, ${stamp}` : job.files[0].name;
-        const tx = await extractStatement(passcode, doc, job.files, job.payer, target, source);
+        const { tx, account } = await extractStatement(passcode, doc, job.files, job.payer, target, source);
         found.push(...tx);
+        accounts.push({ account, payer: job.payer, tx });
         state[i] = { ...state[i], status: 'done', note: `${tx.length} transactions${job.shots ? ', may be part of the month' : ''}` };
       } catch (e) {
         state[i] = { ...state[i], status: 'error', note: (e as Error).message };
@@ -414,6 +417,11 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     const sources = new Set(found.map(t => t.source));
     let added = 0;
     updateDoc(d => {
+      for (const a of accounts) {
+        const id = upsertAccount(d, a.account, a.payer);
+        if (id) for (const t of a.tx) t.account = id;
+      }
+      if (accounts.some(a => a.account?.balance !== undefined)) snapshotNetWorth(d);
       // A statement read again replaces its earlier copy; anything already saved from another source is skipped.
       const prior = (d.months[target]?.tx ?? []).filter(t => !sources.has(t.source));
       const fresh = withoutDuplicates(prior, found);
