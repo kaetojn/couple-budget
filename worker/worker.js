@@ -4,6 +4,7 @@
 //   APP_PASSCODE       the passcode you two share
 //   SHEET_URL          the Apps Script web app URL, ending in /exec
 //   SHEET_TOKEN        the TOKEN value on the first line of the Apps Script
+// Binding to add: a KV namespace with the variable name DB (stores the household's budget).
 const ALLOWED_ORIGINS = ['https://kaetojn.github.io'];
 
 export default {
@@ -30,6 +31,16 @@ export default {
     const path = new URL(request.url).pathname;
 
     if (path === '/check') return reply(200, { ok: true });
+
+    if (path === '/load' || path === '/save') {
+      if (!env.DB) return fail(500, 'The KV binding named DB is not set on the Worker');
+      if (path === '/load') return reply(200, { ok: true, data: await env.DB.get('household', 'json') });
+      let body;
+      try { body = await request.json(); } catch (e) { return fail(400, 'The save was not valid JSON'); }
+      if (!body || typeof body.data !== 'object' || body.data === null) return fail(400, 'Nothing to save');
+      await env.DB.put('household', JSON.stringify(body.data));
+      return reply(200, { ok: true });
+    }
 
     if (path === '/sheet') {
       if (!env.SHEET_URL || !env.SHEET_TOKEN) return fail(500, 'SHEET_URL and SHEET_TOKEN are not set on the Worker');

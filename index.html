@@ -41,7 +41,8 @@ button.primary:hover{background:#095841}
 button:disabled{opacity:.55;cursor:default}
 button.link{border:0;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
 input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-inner);padding:var(--s2) var(--s3);max-width:100%}
-input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=range]:focus{outline:0}
+input:not([type=range]):focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 label.f{display:grid;gap:var(--s1);font-weight:600}
 label.f span{font-weight:400;color:var(--muted);font-size:13px}
 table{width:100%;border-collapse:collapse}
@@ -49,7 +50,7 @@ th{font-size:13px;color:var(--muted);font-weight:600;text-align:left;padding:var
 td{padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:middle}
 tr:last-child td{border-bottom:0}
 tr.off td{color:var(--muted)} tr.off td.desc{text-decoration:line-through}
-td select{padding:var(--s1) var(--s2)}
+td select{padding:var(--s1) 32px var(--s1) var(--s2)}
 .drop{padding:var(--s2);border-radius:var(--r-outer);background:var(--surface);border:1px solid var(--line)}
 .drop .zone{display:block;border:1.5px dashed #b9b9b2;border-radius:var(--r-inner);padding:var(--s5) var(--s4);text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
 .drop .zone:hover,.drop .zone.over{border-color:var(--accent);background:var(--accent-soft)}
@@ -82,6 +83,31 @@ pre,textarea.code{font:12.5px/1.5 ui-monospace,Menlo,monospace}
 textarea.code{width:100%;height:220px}
 ol.steps{padding-left:20px;margin:0 0 var(--s4)} ol.steps li{margin-bottom:var(--s1)}
 .scroll{overflow-x:auto}
+#sync{margin-left:auto;font-size:13px;white-space:nowrap}
+.ob{max-width:560px;margin:4vh auto 0}
+.obprog{height:6px;margin-bottom:var(--s5)}
+.obcard{display:grid;gap:var(--s3)}
+.obcard h1{font-size:26px}.obcard .lead{margin-bottom:var(--s2)}
+.obcard input:not([type=range]),.obcard select{width:100%;font-size:17px;padding:var(--s3)}
+.obcard input[type=range]{width:100%;accent-color:var(--accent);padding:0;border:0}
+.obprev{display:grid;gap:var(--s2)}.obprev:empty{display:none}
+#oberr{margin:0}#oberr:empty{display:none}
+.fromR{animation:inR .35s cubic-bezier(.2,.7,.2,1)}.fromL{animation:inL .35s cubic-bezier(.2,.7,.2,1)}
+@keyframes inR{from{opacity:0;transform:translateX(32px)}}@keyframes inL{from{opacity:0;transform:translateX(-32px)}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.fromR>*,.stagger>*{animation:rise .45s both}
+.fromR>:nth-child(2),.stagger>:nth-child(2){animation-delay:.05s}.fromR>:nth-child(3),.stagger>:nth-child(3){animation-delay:.1s}.fromR>:nth-child(4),.stagger>:nth-child(4){animation-delay:.15s}.fromR>:nth-child(5),.stagger>:nth-child(5){animation-delay:.2s}.fromR>:nth-child(n+6),.stagger>:nth-child(n+6){animation-delay:.25s}
+.check{animation:pop .4s cubic-bezier(.3,1.5,.5,1) both}.check path{stroke-dasharray:40;stroke-dashoffset:40;animation:draw .4s .3s forwards}
+@keyframes pop{from{transform:scale(.4);opacity:0}}@keyframes draw{to{stroke-dashoffset:0}}
+.plan{display:grid;gap:var(--s2);max-height:300px;overflow:auto;padding:var(--s2);border:1px solid var(--line);border-radius:var(--r-inner)}
+.planrow{display:flex;justify-content:space-between;align-items:center;gap:var(--s3)}
+.obcard .planrow input{width:130px;padding:var(--s2);font-size:15px}
+.recap td{padding:var(--s2) var(--s3) var(--s2) 0}
+.bar.tall{height:14px;border-radius:7px}.bar.tall i{border-radius:7px}
+.bar.split{background:#b9d8cd}
+.big.sm{font-size:30px;margin:var(--s2) 0 var(--s1)}
+select{appearance:none;-webkit-appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%234d5361' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer;transition:border-color .15s}
+select:hover{border-color:var(--accent)}
 #menu,#scrim{display:none}
 .locked header nav,.locked #menu{display:none!important}
 .lock{max-width:420px;margin:8vh auto 0;display:grid;gap:var(--s2)}
@@ -109,6 +135,7 @@ td .mlabel{display:none}
   .menu-open #scrim{opacity:1;pointer-events:auto}
   main{padding:var(--s5) var(--s4)}
   h1{font-size:24px} .big{font-size:36px}
+  #sync{margin-right:var(--s2)}
   section{margin-bottom:var(--s5)}
   .card{padding:var(--s4)}
   input,select,textarea{font-size:16px;min-height:44px}
@@ -141,7 +168,7 @@ td .mlabel{display:none}
 </style>
 </head>
 <body>
-<header><strong>Couple Budget</strong><button id="menu" aria-label="Menu" aria-expanded="false" aria-controls="nav"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg></button><nav id="nav"></nav></header>
+<header><strong>Couple Budget</strong><nav id="nav"></nav><span id="sync" class="muted" role="status"></span><button id="menu" aria-label="Menu" aria-expanded="false" aria-controls="nav"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg></button></header>
 <div id="scrim"></div>
 <main id="view"></main>
 <div id="toast" role="status"></div>
@@ -162,25 +189,25 @@ let toastT;function toast(msg){const t=$('#toast');t.textContent=msg;t.classList
 const WORKER='https://couple-budget.kaetojn.workers.dev';
 const KEY='coupleBudget.v1',CUR='coupleBudget.cur';
 function defaults(){return{
-  settings:{p1:'Partner 1',p2:'Partner 2',split:67,sav1:637.35,sav2:303.75,passcode:'',model:'claude-sonnet-5-5',remember:true},
+  settings:{p1:'Partner 1',p2:'Partner 2',arrangement:'hybrid',inc1:0,inc2:0,splitMethod:'custom',onboarded:false,split:67,sav1:637.35,sav2:303.75,passcode:'',model:'claude-sonnet-5-5',remember:true},
   categories:[['Rent payment',3400],['Mortgage payment',200],['Condo fees',600],['Property taxes',350],['Utilities',150],['Car payment',365],['Car insurance',280],['Fuel',100],['Groceries',1000],['Food delivery',400],['Household supplies',150],['Subscriptions',100]]
     .map(([name,budget])=>({name,budget,scope:'shared',kind:'expense'}))
     .concat(['Dining out','Shopping','Transit & rides','Health','Entertainment','Travel','Personal care','Gifts','Fees & interest','Other'].map(name=>({name,budget:0,scope:'personal',kind:'expense'})),
     [{name:'Joint savings',budget:0,scope:'shared',kind:'savings',locked:true},{name:'Income',budget:0,scope:'personal',kind:'income',locked:true},{name:'Transfer',budget:0,scope:'personal',kind:'transfer',locked:true}]),
   rules:[],history:{}}}
 function load(){const d=defaults();try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){Object.assign(d.settings,s.settings||{});if(s.categories?.length)d.categories=s.categories;d.rules=s.rules||[];d.history=s.history||{}}}catch(e){}return d}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser: '+e.message)}}
-function saveCur(){try{localStorage.setItem(CUR,JSON.stringify({month:cur.month,tx:cur.tx,insights:cur.insights}))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser: '+e.message)}queuePush()}
+function saveCur(){try{localStorage.setItem(CUR,JSON.stringify({month:cur.month,tx:cur.tx,insights:cur.insights}))}catch(e){}queuePush()}
 let S=load();
 let cur={month:prevMonth(),files:{p1:[],p2:[],joint:[]},tx:[],insights:'',jobs:[],busy:false,insBusy:false};
 try{const c=JSON.parse(localStorage.getItem(CUR)||'null');if(c){cur.month=c.month||cur.month;cur.tx=c.tx||[];cur.insights=c.insights||''}}catch(e){}
-let tab=cur.tx.length?'summary':'statements';
+let tab='home';
 let rv={q:'',who:'all'};
 
 let unlocked=!!S.settings.passcode,demo=false;
 const ready=()=>unlocked;
 function needUnlock(msg){demo=false;unlocked=false;render();toast(msg||'Enter the passcode to use Claude and Google Sheets')}
-function expired(){S.settings.passcode='';save();unlocked=false;demo=false;render()}
+function expired(){synced=false;S.settings.passcode='';save();unlocked=false;demo=false;render()}
 const who=k=>k==='p1'?S.settings.p1:k==='p2'?S.settings.p2:k==='joint'?'Joint account':'Shared';
 const cat=n=>S.categories.find(c=>c.name===n)||S.categories.find(c=>c.name==='Other')||S.categories[0];
 const personal=t=>t.paidBy==='joint'?'shared':t.paidBy;
@@ -190,10 +217,10 @@ function applyRules(t){const k=String(t.desc).toUpperCase().replace(/[^A-Z& ]/g,
 /* ---------- maths ---------- */
 function compute(txs){
   const p1share=S.settings.split/100;
-  const r={byCat:{},total:0,shared:0,pers:{p1:0,p2:0},sharedPaid:{p1:0,p2:0,joint:0},sav:{p1:0,p2:0,joint:0},income:0,cross:0};
+  const r={byCat:{},total:0,shared:0,pers:{p1:0,p2:0},sharedPaid:{p1:0,p2:0,joint:0},sav:{p1:0,p2:0,joint:0},inc:{p1:0,p2:0,joint:0},income:0,cross:0};
   for(const t of txs){ if(t.exclude)continue; const c=cat(t.category);
     if(c.kind==='transfer')continue;
-    if(c.kind==='income'){r.income+=-t.amount;continue}
+    if(c.kind==='income'){r.income+=-t.amount;r.inc[t.paidBy]+=-t.amount;continue}
     if(c.kind==='savings'){r.sav[t.paidBy]+=t.amount;continue}
     r.byCat[c.name]=(r.byCat[c.name]||0)+t.amount; r.total+=t.amount;
     if(t.owner==='shared'){r.shared+=t.amount;r.sharedPaid[t.paidBy]+=t.amount}
@@ -267,7 +294,7 @@ async function makeInsights(){
   const merch={};cur.tx.forEach(t=>{if(!t.exclude&&cat(t.category).kind==='expense'){const k=mkey(t.desc);merch[k]=(merch[k]||0)+t.amount}});
   const top=Object.entries(merch).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([k,v])=>`${k}: ${v.toFixed(2)}`).join('\n');
   const hist=Object.entries(S.history).filter(([m])=>m!==cur.month).sort().slice(-6).map(([m,h])=>{const x=compute(h.tx);return `${m}: total ${x.total.toFixed(2)}; `+Object.entries(x.byCat).map(([c,v])=>`${c} ${v.toFixed(0)}`).join(', ')}).join('\n');
-  const prompt=`Budget month ${cur.month} for a couple, ${S.settings.p1} and ${S.settings.p2}. Shared costs are split ${S.settings.split}/${100-S.settings.split}. Amounts in CAD.
+  const prompt=`Budget month ${cur.month} for a couple, ${S.settings.p1} and ${S.settings.p2}. How they manage money: ${ARR[S.settings.arrangement][0]}. Monthly take-home: ${S.settings.p1} ${inc('p1')}, ${S.settings.p2} ${inc('p2')}. Split method: ${METHOD[S.settings.splitMethod]}. Tailor the advice to this arrangement and to each partner's income. Shared costs are split ${splitTxt()}. Amounts in CAD.
 
 By category:
 ${cats}
@@ -315,8 +342,107 @@ async function exportSheet(btn){
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function exportCsv(){const q=v=>'"'+String(safe(v)).replace(/"/g,'""')+'"';download('budget-'+cur.month+'.csv',sheetRows().rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv')}
 
+/* ---------- sync ---------- */
+let synced=false,loading=false,pushT;
+function setSync(text){const el=$('#sync');if(el)el.textContent=text}
+function cloudDoc(){const st={...S.settings};delete st.passcode;return{settings:st,categories:S.categories,rules:S.rules,history:S.history,cur:{month:cur.month,tx:cur.tx,insights:cur.insights},updatedAt:new Date().toISOString()}}
+async function api(path,body){
+  const res=await fetch(WORKER+path,{method:'POST',headers:{'content-type':'application/json','x-app-passcode':S.settings.passcode},body:body?JSON.stringify(body):undefined});
+  const j=await res.json().catch(()=>({}));
+  if(res.status===401){expired();throw new Error('The passcode is no longer accepted')}
+  if(!res.ok)throw new Error(res.status===404?'the Worker needs the latest code':j.error?.message||('request failed ('+res.status+')'));
+  return j}
+function adopt(d){const pass=S.settings.passcode;S.settings=Object.assign(defaults().settings,d.settings||{},{passcode:pass});
+  if(d.categories?.length)S.categories=d.categories;S.rules=d.rules||[];S.history=d.history||{};
+  if(d.cur){cur.month=d.cur.month||cur.month;cur.tx=d.cur.tx||[];cur.insights=d.cur.insights||''}
+  try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem(CUR,JSON.stringify({month:cur.month,tx:cur.tx,insights:cur.insights}))}catch(e){}}
+async function pull(){loading=true;setSync('');render();
+  try{const j=await api('/load');if(j.data)adopt(j.data);synced=true;if(j.data)setSync('Saved');else push()}
+  catch(e){if(unlocked){setSync('This device only');toast('Not syncing: '+e.message)}}
+  loading=false;if(unlocked)render()}
+function queuePush(){if(!synced||!unlocked)return;clearTimeout(pushT);setSync('Saving…');pushT=setTimeout(push,2000)}
+async function push(){if(!synced||!unlocked)return;try{await api('/save',{data:cloudDoc()});setSync('Saved')}catch(e){setSync('Not saved online')}}
+
+/* ---------- profile and plan ---------- */
+const ARR={joint:['One joint account','Everything is paid from one shared account, so there is nothing to settle between you.'],
+  hybrid:['Separate accounts, shared expenses','Each of you pays from your own account. Shared costs are tallied and evened out with a monthly settle-up.'],
+  separate:['Fully separate, we split the bills','You keep your finances apart and divide specific bills. The settle-up shows who owes what for those.']};
+const METHOD={income:'In proportion to income',even:'50/50',custom:'A split we choose'};
+const inc=k=>+S.settings[k==='p1'?'inc1':'inc2']||(demo&&!unlocked?(k==='p1'?5200:2600):0);
+const splitTxt=()=>{const a=+(+S.settings.split).toFixed(1);return a+'/'+(+(100-a).toFixed(1))};
+const pc=n=>(Math.round(n*10)/10)+'%';
+function applySplit(){const s=S.settings,a=+s.inc1||0,b=+s.inc2||0;if(s.splitMethod==='even')s.split=50;else if(s.splitMethod==='income'&&a+b>0)s.split=Math.round(a/(a+b)*1000)/10}
+function plan(){const i1=inc('p1'),i2=inc('p2'),I=i1+i2,sh=S.settings.split/100,ex=S.categories.filter(c=>c.kind==='expense'),sum=a=>a.reduce((x,c)=>x+(+c.budget||0),0);
+  const sharedB=sum(ex.filter(c=>c.scope==='shared')),budget=sum(ex),housing=sum(ex.filter(c=>/rent|mortgage|condo|property|strata|hoa/i.test(c.name)));
+  const s1=+S.settings.sav1||0,s2=+S.settings.sav2||0,sav=s1+s2,planned=budget+sav;
+  return{i1,i2,I,sh,sharedB,budget,housing,sav,s1,s2,planned,free:I-planned,incShare:I?i1/I*100:50,left:{p1:i1-sharedB*sh-s1,p2:i2-sharedB*(1-sh)-s2}}}
+function latest(){if(cur.tx.length)return{m:cur.month,r:compute(cur.tx),current:true};const ms=Object.keys(S.history).sort();if(!ms.length)return null;const m=ms[ms.length-1];return{m,r:compute(S.history[m].tx)}}
+function suggestions(p){const s=S.settings,out=[],n1=s.p1,n2=s.p2,is=Math.round(p.incShare),fair=is+'/'+(100-is);
+  if(s.arrangement==='joint')out.push('With one joint account there is no settle-up. The personal categories are where to watch whether one of you is outspending the other.');
+  else if(s.splitMethod==='income')out.push(`Your ${splitTxt()} split follows your incomes, so shared costs take the same ${pc(p.sharedB/p.I*100)} of each paycheque.`);
+  else if(Math.abs(s.split-p.incShare)>5){const b1=p.i1?p.sharedB*p.sh/p.i1*100:0,b2=p.i2?p.sharedB*(1-p.sh)/p.i2*100:0,delta=Math.abs(p.sharedB*(s.split-p.incShare)/100);
+    out.push(`Your incomes point to a ${fair} split and you use ${splitTxt()}. Shared costs take ${pc(b1)} of ${n1}'s income and ${pc(b2)} of ${n2}'s. ${s.split>p.incShare?n1:n2} covers about ${money(delta)} a month more than an income-based split would ask.`)}
+  else out.push(`Your ${splitTxt()} split is close to what your incomes suggest (${fair}).`);
+  if(p.housing){const h=p.housing/p.I*100;out.push(`Housing is planned at ${pc(h)} of take-home. `+(h>30?'A common rule of thumb is about 30%, so other budgets have less slack.':'That is within the common 30% rule of thumb.'))}
+  out.push(p.sav?`You plan to put ${money(p.sav)} a month into joint savings, ${pc(p.sav/p.I*100)} of take-home.`:'No joint savings target is set yet. Add one in Settings to track it each month.');
+  if(p.free<0)out.push(`The plan is ${money(-p.free)} a month more than you bring in. Trim a budget or a savings target in Settings.`);
+  else if(p.free>p.I*0.05)out.push(`${money(p.free)} a month is not assigned to a budget or savings. Personal spending comes out of this.`);
+  if(s.arrangement!=='joint'&&(p.left.p1<0||p.left.p2<0))out.push(`${p.left.p1<0?n1:n2} comes up short after shared costs and savings under the current split.`);
+  const l=latest();if(l){const over=S.categories.filter(c=>c.kind==='expense'&&c.budget&&(l.r.byCat[c.name]||0)>c.budget+0.005).map(c=>({n:c.name,o:l.r.byCat[c.name]-c.budget})).sort((a,b)=>b.o-a.o)[0];
+    if(over)out.push(`In ${monthName(l.m)}, ${over.n} ran ${money(over.o)} over budget, the biggest overrun.`)}
+  return out}
+function animate(){document.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%');
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  document.querySelectorAll('[data-count]').forEach(el=>{const to=+el.dataset.count,t0=performance.now();delete el.dataset.count;
+    const f=t=>{const q=Math.min(1,(t-t0)/700),e=1-Math.pow(1-q,3);el.textContent=money(to*e);if(q<1&&el.isConnected)requestAnimationFrame(f)};requestAnimationFrame(f)})}
+
+/* ---------- setup guide ---------- */
+let ob={step:0,dir:1,prev:0};
+function obSteps(){return['names','arr','income'].concat(S.settings.arrangement==='joint'?[]:['split'],['plan','done'])}
+function obPrev(id){const s=S.settings,p=plan(),n1=esc(s.p1||'First partner'),n2=esc(s.p2||'Second partner');
+  if(id==='arr')return `<span class="muted">${ARR[s.arrangement][1]}</span>`;
+  if(id==='income')return p.I?`<span class="muted">Together you take home <strong class="num">${money(p.I)}</strong> a month. By income that is ${Math.round(p.incShare)}/${100-Math.round(p.incShare)}.</span>`:'';
+  if(id==='split'){const w=ob.lastW??s.split;ob.lastW=s.split;return `<div class="bar tall split"><i data-w="${s.split}" style="width:${w}%"></i></div>
+    <div class="row spread"><span><strong>${n1}</strong> <span class="num">${pc(s.split)}</span></span><span><strong>${n2}</strong> <span class="num">${pc(100-s.split)}</span></span></div>
+    <span class="muted">Of ${money(p.sharedB)} in shared budgets, ${n1} covers ${money(p.sharedB*p.sh)} and ${n2} covers ${money(p.sharedB*(1-p.sh))}.</span>`}
+  if(id==='plan'){const pct=p.I?p.planned/p.I*100:0,w=ob.lastP??pct;ob.lastP=pct;return `<div class="bar tall ${p.free<0?'over':''}"><i data-w="${Math.min(100,pct).toFixed(1)}" style="width:${Math.min(100,w)}%"></i></div>
+    <span class="${p.free<0?'overtxt':'muted'}">${money(p.planned)} planned of ${money(p.I)} take-home. ${p.free<0?money(-p.free)+' over.':money(p.free)+' left over.'}</span>`}
+  return ''}
+function obRefresh(){const el=$('#obprev');if(el){el.innerHTML=obPrev(obSteps()[ob.step]);requestAnimationFrame(animate)}}
+function obView(){const steps=obSteps(),id=steps[ob.step],s=S.settings,n1=esc(s.p1),n2=esc(s.p2),def=v=>/^Partner [12]$/.test(v)?'':esc(v);
+  const opt=(o,cur)=>Object.entries(o).map(([k,v])=>`<option value="${k}" ${cur===k?'selected':''}>${Array.isArray(v)?v[0]:v}</option>`).join('');
+  const B={
+  names:()=>`<h1>First, what are your names?</h1><p class="lead">They label accounts, shares and the settle-up.</p>
+    <label class="f">First partner<input data-ob="p1" value="${def(s.p1)}" autocomplete="off" required></label><label class="f">Second partner<input data-ob="p2" value="${def(s.p2)}" autocomplete="off" required></label>`,
+  arr:()=>`<h1>How do ${n1} and ${n2} manage money?</h1><p class="lead">This decides whether there is a settle-up and how the advice is worded.</p>
+    <label class="f">Our setup<select data-ob="arrangement">${opt(ARR,s.arrangement)}</select></label>`,
+  income:()=>`<h1>What does each of you take home in a month?</h1><p class="lead">After tax. Your incomes drive the suggested split and the insights on your home page.</p>
+    <label class="f">${n1}<input type="number" inputmode="decimal" min="0" step="0.01" data-ob="inc1" data-num value="${esc(s.inc1||'')}" placeholder="0.00"></label><label class="f">${n2}<input type="number" inputmode="decimal" min="0" step="0.01" data-ob="inc2" data-num value="${esc(s.inc2||'')}" placeholder="0.00"></label>`,
+  split:()=>`<h1>How should shared costs be split?</h1><p class="lead">Rent, groceries and the rest of your shared budgets are divided this way.</p>
+    <label class="f">Split<select data-ob="splitMethod">${opt(METHOD,s.splitMethod)}</select></label>
+    ${s.splitMethod==='custom'?`<label class="f">${n1}'s share<input type="range" min="0" max="100" step="1" data-ob="split" data-num value="${Math.round(s.split)}"></label>`:''}`,
+  plan:()=>`<h1>Set your monthly plan</h1><p class="lead">These start from your current numbers. Change any of them now or later in Settings.</p>
+    <div class="grid g2"><label class="f">${n1} to joint savings<input type="number" inputmode="decimal" min="0" step="0.01" data-ob="sav1" data-num value="${esc(s.sav1||'')}"></label><label class="f">${n2} to joint savings<input type="number" inputmode="decimal" min="0" step="0.01" data-ob="sav2" data-num value="${esc(s.sav2||'')}"></label></div>
+    <div class="plan">${S.categories.map((c,i)=>c.kind==='expense'&&c.budget?`<label class="planrow"><span>${esc(c.name)}</span><input type="number" inputmode="decimal" min="0" step="0.01" class="num" data-obcat="${i}" value="${esc(c.budget)}" aria-label="${esc(c.name)} budget"></label>`:'').join('')}</div>`,
+  done:()=>{const p=plan();return `<svg class="check" width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="var(--accent)"/><path d="M17 29l8 8 15-17" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>You are set, ${n1} and ${n2}</h1><p class="lead">Your home page is ready. Add statements each month and it fills in with what you spent.</p>
+    <table class="recap"><tr><td class="muted">Setup</td><td>${ARR[s.arrangement][0]}</td></tr>${s.arrangement==='joint'?'':`<tr><td class="muted">Shared costs</td><td class="num" style="text-align:left">${splitTxt()}, ${METHOD[s.splitMethod].toLowerCase()}</td></tr>`}
+    <tr><td class="muted">Take-home</td><td class="num" style="text-align:left">${money(p.I)} a month</td></tr><tr><td class="muted">Planned</td><td class="num" style="text-align:left">${money(p.planned)} a month</td></tr></table>`}};
+  const html=`<div class="ob"><div class="bar obprog"><i data-w="${((ob.step+1)/steps.length*100).toFixed(1)}" style="width:${ob.prev}%"></i></div>
+  <form id="obform" class="card obcard ${ob.dir>0?'fromR':ob.dir<0?'fromL':''}" novalidate>${B[id]()}<div id="obprev" class="obprev">${obPrev(id)}</div><p id="oberr" class="overtxt" role="alert"></p>
+  <div class="row spread">${ob.step?'<button type="button" class="btn" data-act="obback">Back</button>':'<span></span>'}<button class="btn primary">${id==='done'?'Add your first statements':'Continue'}</button></div></form></div>`;
+  ob.prev=(ob.step+1)/steps.length*100;return html}
+function obNext(){const s=S.settings,id=obSteps()[ob.step];let err='';
+  if(id==='names'){s.p1=String(s.p1||'').trim();s.p2=String(s.p2||'').trim();if(!s.p1||!s.p2||/^Partner [12]$/.test(s.p1)||/^Partner [12]$/.test(s.p2))err='Enter both names to continue.';else if(s.p1.toLowerCase()===s.p2.toLowerCase())err='Use two different names so the accounts can be told apart.'}
+  if(id==='income'&&!((+s.inc1||0)+(+s.inc2||0)>0))err='Enter at least one income to continue.';
+  if(id==='income'&&ob.step&&!s._methodSet){s.splitMethod='income';s._methodSet=true}
+  if(err){$('#oberr').textContent=err;const f=$('#obform');f.classList.remove('fromR','fromL','shake');void f.offsetWidth;f.classList.add('shake');return}
+  applySplit();
+  if(id==='done'){s.onboarded=true;delete s._methodSet;save();tab='statements';render();scrollTo(0,0);return toast('Setup saved')}
+  save();ob.dir=1;ob.step++;ob.lastW=ob.lastP=undefined;render();scrollTo(0,0)}
+
 /* ---------- views ---------- */
-const TABS=[['statements','Statements'],['review','Review'],['summary','Summary'],['history','History'],['settings','Settings']];
+const TABS=[['home','Home'],['statements','Statements'],['review','Review'],['summary','Summary'],['history','History'],['settings','Settings']];
 function lockView(){return `<form class="lock card" id="lockform"><h1>Unlock Couple Budget</h1>
   <p class="lead">Enter the passcode you two share. It is checked once, then remembered on this device.</p>
   <label class="f">Passcode<input type="password" id="pass" autocomplete="current-password" required></label>
@@ -326,28 +452,48 @@ async function unlock(){const inp=$('#pass'),btn=$('#unlockbtn'),err=$('#lockerr
   btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;vertical-align:-2px;margin-right:8px"></span>Checking…';err.textContent='';
   let msg='';
   try{const res=await fetch(WORKER+'/check',{method:'POST',headers:{'x-app-passcode':v}});
-    if(res.ok){S.settings.passcode=v;save();unlocked=true;demo=false;if(!cur.tx.length)tab='statements';render();return toast('Unlocked on this device')}
+    if(res.ok){S.settings.passcode=v;save();unlocked=true;demo=false;tab='home';toast('Unlocked on this device');return pull()}
     msg=res.status===401?'That passcode is not right. Try again.':'The Worker answered, but could not check the passcode ('+res.status+').'}
   catch(e){msg='Could not reach the Worker. Check your connection and try again.'}
   if(!btn.isConnected)return;
   btn.disabled=false;btn.textContent='Unlock';err.textContent=msg;const f=$('#lockform');f.classList.remove('shake');void f.offsetWidth;f.classList.add('shake');inp.select()}
 function render(){
-  const locked=!unlocked&&!demo;document.body.classList.toggle('locked',locked);
+  const locked=!unlocked&&!demo,setup=unlocked&&!loading&&!S.settings.onboarded;document.body.classList.toggle('locked',locked||loading||setup);
   if(locked){$('#nav').innerHTML='';$('#view').innerHTML=lockView();$('#pass').focus();return}
+  if(loading){$('#nav').innerHTML='';$('#view').innerHTML='<div class="ob"><h1>Loading your budget</h1><div class="card"><div class="skel" style="width:70%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:55%"></div></div></div>';return}
+  if(setup){$('#nav').innerHTML='';$('#view').innerHTML=obView();requestAnimationFrame(animate);const f=$('#obform [data-ob="'+(ob.focus||'')+'"]')||$('#obform input,#obform select');if(f&&ob.step<obSteps().length-1)f.focus();ob.focus='';return}
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-act="tab" data-tab="${k}" ${tab===k?'aria-current="page"':''}>${l}</button>`).join('');
   $('#view').innerHTML=(demo&&!unlocked?'<p class="demo">Sample mode. Claude and Google Sheets are off until you unlock. <button class="link" data-act="lock">Enter passcode</button></p>':'')+V[tab]();
   if(tab==='review')renderRows();
-  requestAnimationFrame(()=>document.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%'))}
+  requestAnimationFrame(animate)}
 const drop=k=>`<div class="drop"><label class="zone" data-zone="${k}"><input type="file" multiple accept=".pdf,.csv,.txt" data-ch="files" data-k="${k}"><strong>${esc(who(k))}</strong><br><span class="muted">Drop PDF statements or click to choose</span></label>
   ${cur.files[k].length?`<ul>${cur.files[k].map((f,i)=>`<li><span>${esc(f.name)}</span><button class="link" data-act="rmfile" data-k="${k}" data-i="${i}">Remove</button></li>`).join('')}</ul>`:''}</div>`;
 function jobsHtml(){return cur.jobs.map(j=>`<li>${j.status==='reading'?'<span class="spin"></span>':`<span class="dot ${j.status==='done'?'ok':j.status==='error'?'err':''}"></span>`}<span>${esc(j.name)} <span class="muted">· ${esc(who(j.k))}</span></span><span class="${j.status==='error'?'overtxt':'muted'}">${esc(j.status==='reading'?'Reading and categorizing…':j.status==='waiting'?'Waiting':j.msg||'')}</span></li>`).join('')}
 function renderJobs(){const el=$('#jobs');if(el)el.innerHTML=jobsHtml()}
 const V={
+home(){const s=S.settings,p=plan();
+  if(!p.I)return `<h1>Add your incomes to see your plan</h1><p class="lead">The home page is built from what each of you takes home and how you split costs.</p><div class="row actions"><button class="btn primary" data-act="setup">Start the setup guide</button></div>`;
+  const l=latest(),joint=s.arrangement==='joint',n1=esc(s.p1),n2=esc(s.p2),is=Math.round(p.incShare);
+  const person=(k,i,share,sv)=>{const sp=p.sharedB*share,left=i-sp-sv,used=i?Math.min(100,(sp+sv)/i*100):100;
+    return `<div class="card"><div class="row spread"><strong>${esc(who(k))}</strong><span class="muted num">${money(i)} take-home</span></div><div class="big sm ${left<0?'overtxt':''}" data-count="${left.toFixed(2)}">${money(left)}</div>
+      <span class="muted">left after ${money(sp)} of shared costs and ${money(sv)} of savings</span><div class="bar tall ${left<0?'over':''}" style="margin-top:var(--s3)"><i data-w="${used.toFixed(1)}"></i></div></div>`};
+  const share=(label,v)=>{const q=v/p.I*100;return `<div class="card stat"><span class="muted">${label}</span><b>${pc(q)}</b><span class="muted num">${money(v)} a month</span><div class="bar" style="margin-top:var(--s3)"><i data-w="${Math.min(100,q).toFixed(1)}"></i></div></div>`};
+  return `<div class="stagger"><h1>${n1} and ${n2}: ${money(p.I)} comes in, ${money(p.planned)} is planned</h1>
+  <p class="lead">${ARR[s.arrangement][0]}${joint?'':', with shared costs split '+splitTxt()}.</p>
+  <section class="hero"><div class="card settle"><span class="muted">${p.free>=0?'Left each month after the plan':'Planned beyond your income'}</span><div class="big" style="margin:var(--s2) 0" data-count="${Math.abs(p.free).toFixed(2)}">${money(Math.abs(p.free))}</div>
+      <span class="muted">${money(p.budget)} in budgets and ${money(p.sav)} in joint savings, from ${money(p.I)} take-home.</span></div>
+    <div class="card grid" style="align-content:center">${joint?`<div class="stat"><span class="muted">Combined take-home</span><b>${money(p.I)}</b></div><div class="stat"><span class="muted">Budgets</span><b>${money(p.budget)}</b></div>`
+      :`<span class="muted">How shared costs are split</span><div class="bar tall split"><i data-w="${s.split}"></i></div><div class="row spread"><span><strong>${n1}</strong> <span class="num">${pc(s.split)}</span></span><span><strong>${n2}</strong> <span class="num">${pc(100-s.split)}</span></span></div><span class="muted">${METHOD[s.splitMethod]}. Your incomes are ${is}/${100-is}.</span>`}</div></section>
+  ${joint?'':`<section><h2>What each of you keeps</h2><div class="grid g2">${person('p1',p.i1,p.sh,p.s1)}${person('p2',p.i2,1-p.sh,p.s2)}</div></section>`}
+  <section><h2>The plan as a share of take-home</h2><div class="grid g3">${share('Housing',p.housing)}${share('Shared costs',p.sharedB)}${share('Joint savings',p.sav)}</div></section>
+  <section><h2>Suggestions for how you budget</h2><div class="card"><ul class="insights">${suggestions(p).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></section>
+  <section><div class="card row spread actions">${l?`<span><strong>${esc(monthName(l.m))}</strong><br><span class="muted">${money(l.r.total)} spent of ${money(l.r.budget)}. ${joint?'':esc(settleText(l.r))+'.'}</span></span>`:'<span><strong>No statements yet</strong><br><span class="muted">Add a month to compare real spending with this plan.</span></span>'}
+    <span class="row actions">${l&&l.current?'<button class="btn" data-act="tab" data-tab="summary">Open the summary</button>':''}<button class="btn primary" data-act="tab" data-tab="statements">Add this month's statements</button></span></div></section></div>`},
 statements(){const n=cur.files.p1.length+cur.files.p2.length+cur.files.joint.length;return `
   <h1>Add this month's CIBC and TD statements</h1>
   <p class="lead">Put each statement under the person whose account it is. Claude reads every line, assigns a category and marks it shared or personal. Statements go from this browser through your private Worker to Claude, and are not stored anywhere else.</p>
   <section><label class="f" style="max-width:220px">Budget month<input type="month" value="${esc(cur.month)}" data-ch="month"></label></section>
-  <section class="grid g3">${drop('p1')}${drop('p2')}${drop('joint')}</section>
+  <section class="grid g3">${S.settings.arrangement==='joint'?drop('joint')+drop('p1')+drop('p2'):drop('p1')+drop('p2')+drop('joint')}</section>
   <section><div class="row actions"><button class="btn primary" data-act="analyze" ${cur.busy?'disabled':''}>${cur.busy?'Analyzing…':n?`Analyze ${n} statement${n>1?'s':''}`:'Analyze statements'}</button>
     ${cur.busy?'':'<button class="link" data-act="sample">Try it with sample data</button>'}</div>
     <ul class="jobs" id="jobs">${jobsHtml()}</ul></section>`},
@@ -364,12 +510,13 @@ summary(){if(!cur.tx.length)return empty('Nothing to summarize yet','Analyze you
   const r=compute(cur.tx),left=r.budget-r.total;
   const cats=S.categories.filter(c=>c.kind==='expense'&&(c.budget||r.byCat[c.name]));
   const sv=(k,t)=>{const got=r.sav[k];return `<div class="stat"><span class="muted">${esc(who(k))} to joint savings</span><b>${money(got)}</b><span class="${got+0.005<t?'overtxt':'muted'}">of ${money(t)} target</span></div>`};
+  const iv=k=>{const seen=r.inc[k],said=inc(k);return seen||said?`<div class="stat"><span class="muted">${esc(who(k))} income seen in statements</span><b>${money(seen)}</b><span class="muted">you entered ${money(said)} a month</span></div>`:''};
   return `<h1>${esc(monthName(cur.month))}: ${money(r.total)} spent of a ${money(r.budget)} budget</h1>
-  <p class="lead">${left>=0?`${money(left)} under budget overall.`:`${money(-left)} over budget overall.`} Shared costs are split ${S.settings.split}/${100-S.settings.split}.</p>
+  <p class="lead">${left>=0?`${money(left)} under budget overall.`:`${money(-left)} over budget overall.`} Shared costs are split ${splitTxt()}.</p>
   <section class="hero">
-    <div class="card settle"><span class="muted">Settle-up</span><div class="big" style="margin:var(--s2) 0">${r.settle?money(r.settle.amount):'$0.00'}</div>
+    ${S.settings.arrangement==='joint'?`<div class="card settle"><span class="muted">Left from this month's income</span><div class="big" style="margin:var(--s2) 0">${money((r.income||inc('p1')+inc('p2'))-r.total-r.sav.p1-r.sav.p2-r.sav.joint)}</div><span class="muted">${money(r.income||inc('p1')+inc('p2'))} came in, ${money(r.total)} was spent and ${money(r.sav.p1+r.sav.p2+r.sav.joint)} went to savings. With one joint account there is nothing to settle.</span></div>`:`<div class="card settle"><span class="muted">Settle-up</span><div class="big" style="margin:var(--s2) 0">${r.settle?money(r.settle.amount):'$0.00'}</div>
       <p style="font-size:17px;font-weight:600;margin:0 0 var(--s2)">${esc(settleText(r))}</p>
-      <span class="muted">${esc(S.settings.p1)} paid ${money(r.sharedPaid.p1)} of shared costs (fair share ${money(r.fair.p1)}). ${esc(S.settings.p2)} paid ${money(r.sharedPaid.p2)} (fair share ${money(r.fair.p2)}).${r.sharedPaid.joint?` ${money(r.sharedPaid.joint)} came from the joint account and is left out.`:''}</span></div>
+      <span class="muted">${esc(S.settings.p1)} paid ${money(r.sharedPaid.p1)} of shared costs (fair share ${money(r.fair.p1)}). ${esc(S.settings.p2)} paid ${money(r.sharedPaid.p2)} (fair share ${money(r.fair.p2)}).${r.sharedPaid.joint?` ${money(r.sharedPaid.joint)} came from the joint account and is left out.`:''}</span></div>`}
     <div class="card grid" style="align-content:space-between">
       <div class="stat"><span class="muted">Shared spending</span><b>${money(r.shared)}</b></div>
       <div class="stat"><span class="muted">${esc(S.settings.p1)}, personal plus share</span><b>${money(r.allIn.p1)}</b><span class="muted">${money(r.pers.p1)} personal</span></div>
@@ -380,24 +527,28 @@ summary(){if(!cur.tx.length)return empty('Nothing to summarize yet','Analyze you
       <td class="o3 full">${b?`<div class="bar ${over?'over':''}"><i data-w="${Math.max(0,Math.min(100,a/b*100)).toFixed(1)}"></i></div>`:''}</td>
       <td class="n o5 ${over?'overtxt':''}">${b?(over?money(a-b)+' over':money(b-a)):''}</td></tr>`}).join('')}
   </tbody></table></div></section>
-  <section class="grid g2">${sv('p1',+S.settings.sav1)}${sv('p2',+S.settings.sav2)}</section>
+  <section class="grid g2">${sv('p1',+S.settings.sav1)}${sv('p2',+S.settings.sav2)}${iv('p1')}${iv('p2')}</section>
   <section><div class="row spread"><h2>What Claude noticed</h2>${cur.insBusy?'':'<button class="link" data-act="insights">Refresh</button>'}</div>
     <div class="card">${cur.insBusy?'<div class="skel" style="width:92%"></div><div class="skel" style="width:78%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:60%"></div>'
       :cur.insights?`<ul class="insights">${cur.insights.split('\n').filter(l=>l.trim()).map(l=>`<li>${esc(l.replace(/^[-•*\d.\s]+/,''))}</li>`).join('')}</ul>`
       :`<span class="muted">${ready()?'No analysis yet. Choose Refresh to write one.':'Unlock with your passcode to get a written analysis of the month.'}</span>`}</div></section>
   <section class="row actions"><button class="btn primary" data-act="sheet">Export to Google Sheets</button><button class="btn" data-act="csv">Download CSV</button><button class="btn" data-act="savemonth">Save to history</button></section>`},
 history(){const ms=Object.keys(S.history).sort().reverse();
-  const top=`<h1>${ms.length?`${ms.length} saved month${ms.length>1?'s':''} on this computer`:'No months saved yet'}</h1><p class="lead">History is kept in this browser only. Download a backup now and then; it holds your months, categories and rules, and never your passcode.</p>`;
+  const top=`<h1>${ms.length?`${ms.length} saved month${ms.length>1?'s':''}`:'No months saved yet'}</h1><p class="lead">Saved months sync to every device you unlock. A backup file holds your months, categories and rules, and never your passcode.</p>`;
   const rows=ms.map(m=>{const r=compute(S.history[m].tx);return{m,r}}),max=Math.max(1,...rows.map(x=>x.r.total));
   return top+(ms.length?`<section><div class="card scroll" style="padding:var(--s2)"><table class="stack"><thead><tr><th>Month</th><th class="n">Spent</th><th style="width:30%"></th><th class="n">Shared</th><th>Settle-up</th><th></th></tr></thead><tbody>
     ${rows.map(({m,r})=>`<tr><td class="strong">${esc(monthName(m))}</td><td class="n strong">${money(r.total)}</td><td class="full"><div class="bar ${r.total>r.budget?'over':''}"><i data-w="${(r.total/max*100).toFixed(1)}"></i></div></td><td class="n hide">${money(r.shared)}</td><td class="full">${esc(settleText(r))}</td>
       <td class="n full left"><button class="link" data-act="open" data-m="${m}">Open</button> &nbsp; <button class="link" data-act="delmonth" data-m="${m}">Delete</button></td></tr>`).join('')}</tbody></table></div></section>`:'')
   +`<section class="row actions"><button class="btn" data-act="backup">Download backup</button><label class="btn">Restore from backup<input type="file" accept=".json" data-ch="restore" hidden></label></section>`},
-settings(){const s=S.settings;return `<h1>Set up names, budgets and connections</h1><p class="lead">Everything here is stored in this browser on this device.</p>
+settings(){const s=S.settings;return `<h1>Set up names, budgets and connections</h1><p class="lead">Changes sync to every device you unlock.</p>
   <section><h2>The two of you</h2><div class="card grid g3">
     <label class="f">First partner<input value="${esc(s.p1)}" data-set="p1"></label>
     <label class="f">Second partner<input value="${esc(s.p2)}" data-set="p2"></label>
-    <label class="f">First partner's share of shared costs, %<input type="number" min="0" max="100" value="${esc(s.split)}" data-set="split" data-num></label>
+    <label class="f">How you manage money<select data-set="arrangement">${Object.entries(ARR).map(([k,v])=>`<option value="${k}" ${s.arrangement===k?'selected':''}>${v[0]}</option>`).join('')}</select></label>
+    <label class="f">First partner's monthly take-home<input type="number" step="0.01" min="0" value="${esc(s.inc1||'')}" data-set="inc1" data-num></label>
+    <label class="f">Second partner's monthly take-home<input type="number" step="0.01" min="0" value="${esc(s.inc2||'')}" data-set="inc2" data-num></label>
+    <label class="f">How shared costs are split<select data-set="splitMethod">${Object.entries(METHOD).map(([k,v])=>`<option value="${k}" ${s.splitMethod===k?'selected':''}>${v}</option>`).join('')}</select></label>
+    <label class="f">First partner's share of shared costs, %<input type="number" min="0" max="100" step="0.1" value="${esc(s.split)}" data-set="split" data-num ${s.splitMethod==='custom'?'':'disabled'}></label>
     <label class="f">First partner's monthly joint savings<input type="number" step="0.01" value="${esc(s.sav1)}" data-set="sav1" data-num></label>
     <label class="f">Second partner's monthly joint savings<input type="number" step="0.01" value="${esc(s.sav2)}" data-set="sav2" data-num></label></div></section>
   <section><h2>Claude</h2><div class="card grid g2">
@@ -410,8 +561,8 @@ settings(){const s=S.settings;return `<h1>Set up names, budgets and connections<
   <section><h2>Remembered corrections</h2><div class="card" ${S.rules.length?'style="padding:var(--s2)"':''}>${S.rules.length?`<table class="stack"><thead><tr><th>When the description contains</th><th>Category</th><th>Belongs to</th><th></th></tr></thead><tbody>
     ${S.rules.map((r,i)=>`<tr><td class="strong">${esc(r.match)}</td><td>${esc(r.category)}</td><td>${r.owner==='shared'?'Shared':'Account holder'}</td><td class="n"><button class="link" data-act="delrule" data-i="${i}">Forget</button></td></tr>`).join('')}</tbody></table>`
     :'<span class="muted">None yet. Corrections you make while reviewing appear here.</span>'}</div></section>
-  <section><h2>This device</h2><div class="card"><p class="muted">Locking asks for the passcode again next time. Erasing also removes the saved months, categories and corrections from this browser.</p>
-    <div class="row actions"><button class="btn" data-act="lock">${unlocked?'Lock this device':'Enter passcode'}</button><button class="btn" data-act="wipe">Lock and erase this device</button></div></div></section>`}
+  <section><h2>This device</h2><div class="card"><p class="muted">Locking asks for the passcode again next time. Erasing clears this browser only; your synced budget stays online.</p>
+    <div class="row actions"><button class="btn" data-act="setup">Run the setup guide again</button><button class="btn" data-act="lock">${unlocked?'Lock this device':'Enter passcode'}</button><button class="btn" data-act="wipe">Lock and erase this device</button></div></div></section>`}
 };
 const empty=(h,p)=>`<h1>${h}</h1><p class="lead">${p}</p><div class="row actions"><button class="btn primary" data-act="tab" data-tab="statements">Add statements</button><button class="link" data-act="sample">Load sample data</button></div>`;
 function renderRows(){const el=$('#rows');if(!el)return;const q=rv.q.toLowerCase();
@@ -439,7 +590,9 @@ const A={
   backup:()=>{const c=JSON.parse(JSON.stringify(S));c.settings.passcode='';download('couple-budget-backup.json',JSON.stringify(c,null,1),'application/json')},
   addcat:()=>{S.categories.splice(S.categories.findIndex(c=>c.kind!=='expense'),0,{name:'New category',budget:0,scope:'personal',kind:'expense'});save();render()},
   delcat:b=>{const c=S.categories[+b.dataset.i];cur.tx.forEach(t=>{if(t.category===c.name)t.category='Other'});S.rules=S.rules.filter(r=>r.category!==c.name);S.categories.splice(+b.dataset.i,1);save();saveCur();render()},
-  lock:()=>{S.settings.passcode='';save();unlocked=false;demo=false;render()},
+  setup:()=>{if(!unlocked)return needUnlock('Enter the passcode to set up your budget');S.settings.onboarded=false;ob={step:0,dir:1,prev:0};render();scrollTo(0,0)},
+  obback:()=>{ob.prev=(ob.step+1)/obSteps().length*100;ob.dir=-1;ob.step--;render()},
+  lock:()=>{synced=false;S.settings.passcode='';save();unlocked=false;demo=false;render()},
   wipe:b=>{if(b.dataset.sure){localStorage.removeItem(KEY);localStorage.removeItem(CUR);location.reload()}else{b.dataset.sure=1;b.textContent='Tap again to erase everything';b.style.borderColor=b.style.color='var(--over)'}},
   delrule:b=>{S.rules.splice(+b.dataset.i,1);save();render()}
 };
@@ -467,13 +620,15 @@ $('#scrim').addEventListener('click',()=>setMenu(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')setMenu(false)});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled)A[b.dataset.act]?.(b)});
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.ch)C[t.dataset.ch]?.(t);
-  else if(t.dataset.set){S.settings[t.dataset.set]='num' in t.dataset?(+t.value||0):t.value.trim();if(t.dataset.set==='split')S.settings.split=Math.max(0,Math.min(100,S.settings.split));save();toast('Saved')}});
-document.addEventListener('submit',e=>{if(e.target.id==='lockform'){e.preventDefault();unlock()}});
-document.addEventListener('input',e=>{if(e.target.dataset.in==='q'){rv.q=e.target.value;renderRows()}});
+  else if(t.dataset.set){S.settings[t.dataset.set]='num' in t.dataset?(+t.value||0):t.value.trim();if(t.dataset.set==='split')S.settings.split=Math.max(0,Math.min(100,S.settings.split));applySplit();save();if(['splitMethod','inc1','inc2'].includes(t.dataset.set))render();toast('Saved')}});
+document.addEventListener('submit',e=>{if(e.target.id==='lockform'){e.preventDefault();unlock()}if(e.target.id==='obform'){e.preventDefault();obNext()}});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.in==='q'){rv.q=t.value;renderRows()}
+  if(t.dataset.ob){const k=t.dataset.ob;S.settings[k]='num' in t.dataset?(+t.value||0):t.value;applySplit();if(t.tagName==='SELECT'){ob.dir=0;ob.focus=k;render()}else obRefresh()}
+  if(t.dataset.obcat){S.categories[+t.dataset.obcat].budget=Math.max(0,+t.value||0);obRefresh()}});
 document.addEventListener('dragover',e=>{const z=e.target.closest?.('[data-zone]');if(z){e.preventDefault();z.classList.add('over')}});
 document.addEventListener('dragleave',e=>e.target.closest?.('[data-zone]')?.classList.remove('over'));
 document.addEventListener('drop',e=>{const z=e.target.closest?.('[data-zone]');e.preventDefault();if(z){cur.files[z.dataset.zone].push(...e.dataTransfer.files);render()}});
-render();
+unlocked?pull():render();
 </script>
 </body>
 </html>
