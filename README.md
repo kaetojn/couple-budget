@@ -1,9 +1,37 @@
 # Couple Budget
 
-A budgeting app for two people. Upload monthly bank statements per person, let Claude categorize every transaction, review the results, and export a summary to Google Sheets.
+A budgeting app for two people. Upload each partner's monthly statements, let Claude categorize every transaction, and see budgets, a settle-up, a payment plan and your net worth in one place.
 
-- `index.html` is the whole app. GitHub Pages serves it from the `main` branch.
-- `worker/worker.js` is a Cloudflare Worker that checks the passcode and holds the Claude key and Google Sheet connection. Set four secrets on it (`ANTHROPIC_API_KEY`, `APP_PASSCODE`, `SHEET_URL`, `SHEET_TOKEN`) and bind a KV namespace as `DB`, which stores the household budget so it syncs across devices.
-- `apps-script/Code.gs` is the script attached to the Google Sheet that adds a tab per export.
+## How it fits together
 
-Nothing financial is stored in this repository.
+| Part | Where | What it does |
+|---|---|---|
+| Web app | `src/`, deployed to GitHub Pages by `.github/workflows/deploy.yml` | React, TypeScript, Tailwind CSS |
+| Backend | `worker/worker.js`, a Cloudflare Worker | Checks the passcode, holds the Claude API key, writes to Google Sheets, stores the household's data in Workers KV |
+| Sheet script | `apps-script/Code.gs` | Adds a tab to the Google Sheet for each export |
+
+Nothing financial lives in this repository. Data is stored in the Worker's KV namespace and cached in each browser.
+
+## Code layout
+
+```
+src/
+  lib/          Pure logic with no UI: types, calculations, plan maths, Worker client, AI prompts, store
+  components/   Reusable pieces: ui/ (buttons, sheets, inputs), charts/, icons, logo
+  features/     One file per screen: Home, Month, Budgets, Plan, NetWorth, Settings, Onboarding, Lock
+```
+
+`src/lib` has no browser-specific code beyond storage, so it can be reused as-is if the app is later rebuilt with React Native.
+
+## Develop
+
+```
+npm install
+npm run dev        # local server
+npm run typecheck  # TypeScript
+npm run build      # production build in dist/
+```
+
+## Worker setup
+
+Secrets: `ANTHROPIC_API_KEY`, `APP_PASSCODE`, `SHEET_URL`, `SHEET_TOKEN`. Binding: a KV namespace named `DB`.
