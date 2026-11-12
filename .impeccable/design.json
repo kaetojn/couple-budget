@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T17:51:14.746727+00:00",
+  "title": "Design System: Couple Budget",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Cool Canvas",
+        "canonical": "#f3f5fa",
+        "tonalRamp": [
+          "#1b2231",
+          "#2b3754",
+          "#394c79",
+          "#465fa0",
+          "#6b82bd",
+          "#a0adcf",
+          "#ced4e4",
+          "#eff1f5"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#949494",
+          "#b8b8b8",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#1a2133",
+          "#283657",
+          "#354a7e",
+          "#3f5ea7",
+          "#6581c3",
+          "#9cadd3",
+          "#ccd4e5",
+          "#eff1f6"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "canonical": "#566074",
+        "tonalRamp": [
+          "#22252a",
+          "#383d47",
+          "#4e5565",
+          "#626d83",
+          "#858fa3",
+          "#afb5c0",
+          "#d5d7dd",
+          "#f1f2f3"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e2e6ef",
+        "tonalRamp": [
+          "#1f232e",
+          "#313a4e",
+          "#435170",
+          "#536792",
+          "#7789b1",
+          "#a7b1c8",
+          "#d1d6e0",
+          "#f0f1f4"
+        ]
+      },
+      "ink-indigo": {
+        "role": "primary",
+        "displayName": "Ink Indigo",
+        "canonical": "#4b3fe4",
+        "tonalRamp": [
+          "#15133a",
+          "#201b65",
+          "#281f93",
+          "#2c20c5",
+          "#5449df",
+          "#938ce3",
+          "#c8c5ec",
+          "#ededf8"
+        ]
+      },
+      "ink-indigo-deep": {
+        "role": "primary",
+        "displayName": "Deep Ink Indigo",
+        "canonical": "#3f34cf",
+        "tonalRamp": [
+          "#181636",
+          "#26215e",
+          "#302a89",
+          "#392fb6",
+          "#5f57d1",
+          "#9994db",
+          "#cbc9e9",
+          "#eeeef7"
+        ]
+      },
+      "indigo-mist": {
+        "role": "primary",
+        "displayName": "Indigo Mist",
+        "canonical": "#ecebfd",
+        "tonalRamp": [
+          "#13113c",
+          "#1c1768",
+          "#211a98",
+          "#2319cc",
+          "#4c43e5",
+          "#8e89e6",
+          "#c6c3ee",
+          "#edecf8"
+        ]
+      },
+      "indigo-mist-deep": {
+        "role": "primary",
+        "displayName": "Deep Indigo Mist",
+        "canonical": "#dfdcfb",
+        "tonalRamp": [
+          "#15113b",
+          "#201867",
+          "#281c97",
+          "#2d1cca",
+          "#5445e3",
+          "#938ae5",
+          "#c8c4ee",
+          "#edecf8"
+        ]
+      },
+      "rose": {
+        "role": "secondary",
+        "displayName": "Rose",
+        "canonical": "#d23a76",
+        "tonalRamp": [
+          "#3a1222",
+          "#661a37",
+          "#951e4c",
+          "#c71f60",
+          "#e04883",
+          "#e48cae",
+          "#edc5d4",
+          "#f8ecf1"
+        ]
+      },
+      "blush": {
+        "role": "secondary",
+        "displayName": "Blush",
+        "canonical": "#ffb7d3",
+        "tonalRamp": [
+          "#400c20",
+          "#710e35",
+          "#a60c48",
+          "#e0055a",
+          "#f7317e",
+          "#f17eab",
+          "#f3bfd3",
+          "#faebf1"
+        ]
+      },
+      "lagoon-teal": {
+        "role": "tertiary",
+        "displayName": "Lagoon Teal",
+        "canonical": "#0fa3a3",
+        "tonalRamp": [
+          "#103c3c",
+          "#176969",
+          "#199999",
+          "#18cece",
+          "#41e7e7",
+          "#88e7e7",
+          "#c3efef",
+          "#ecf9f9"
+        ]
+      },
+      "personal-slate": {
+        "role": "neutral",
+        "displayName": "Personal Slate",
+        "canonical": "#64748b",
+        "tonalRamp": [
+          "#22252b",
+          "#383e48",
+          "#4d5766",
+          "#617085",
+          "#8491a4",
+          "#aeb6c1",
+          "#d4d8dd",
+          "#f1f2f3"
+        ]
+      },
+      "good": {
+        "role": "status",
+        "displayName": "Good",
+        "canonical": "#0a8058",
+        "tonalRamp": [
+          "#103d2d",
+          "#166a4d",
+          "#179b6e",
+          "#15d091",
+          "#3fe9af",
+          "#87e8c7",
+          "#c2efe0",
+          "#ecf9f4"
+        ]
+      },
+      "bad": {
+        "role": "status",
+        "displayName": "Bad",
+        "canonical": "#d13438",
+        "tonalRamp": [
+          "#371617",
+          "#5f2122",
+          "#8a292b",
+          "#b82e31",
+          "#d35558",
+          "#dc9395",
+          "#e9c8c9",
+          "#f7edee"
+        ]
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Warn",
+        "canonical": "#b45309",
+        "tonalRamp": [
+          "#3e230f",
+          "#6c3a13",
+          "#9f5013",
+          "#d66510",
+          "#ee883a",
+          "#ebb184",
+          "#f0d6c1",
+          "#f9f1eb"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero money values only; 44px, 52px from md; smaller 24–36px on cards."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles; 28px from md."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section and sheet titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default copy and inputs (16px prevents iOS zoom)."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Card descriptions, toasts, medium buttons."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Hints, captions, sync status."
+      },
+      "nav-label": {
+        "displayName": "Nav Label",
+        "purpose": "Bottom tab labels."
+      },
+      "display-large": {
+        "displayName": "Display Large",
+        "purpose": "Hero money values from md up."
+      },
+      "headline-large": {
+        "displayName": "Headline Large",
+        "purpose": "Page titles from md up."
+      }
+    },
+    "shadows": [
+      {
+        "name": "accent-lift",
+        "value": "0 1px 2px rgb(75 63 228 / 0.3)",
+        "purpose": "Only under the primary button."
+      },
+      {
+        "name": "selected-chip",
+        "value": "0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Active segmented option."
+      },
+      {
+        "name": "floating",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "Listbox menus and toasts."
+      },
+      {
+        "name": "sheet",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "Bottom sheets and dialogs over a 45% Ink scrim."
+      },
+      {
+        "name": "thumb",
+        "value": "0 1px 4px rgb(15 23 42 / 0.2)",
+        "purpose": "Slider thumb and switch knob."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrances: rise, slide, sheet open."
+      },
+      {
+        "name": "ease-in-quick",
+        "value": "cubic-bezier(0.4, 0, 1, 1)",
+        "purpose": "Sheet exit."
+      },
+      {
+        "name": "rise",
+        "value": "0.32s ease-out-expo, translateY(6px) → 0",
+        "purpose": "First visit to a screen; staggered 30ms per child, capped at 120ms."
+      },
+      {
+        "name": "fade",
+        "value": "0.16s ease-out",
+        "purpose": "Return visit to a screen."
+      },
+      {
+        "name": "slide",
+        "value": "0.26s ease-out-expo, ±16px",
+        "purpose": "Month switching and onboarding steps, direction-aware."
+      },
+      {
+        "name": "sheet",
+        "value": "enter 260ms ease-out-expo, leave 180ms ease-in-quick, transform + opacity only",
+        "purpose": "Bottom sheets and dialogs."
+      },
+      {
+        "name": "pop",
+        "value": "0.4s cubic-bezier(0.3, 1.5, 0.5, 1), scale 0.5 → 1",
+        "purpose": "Success check and confirmations."
+      },
+      {
+        "name": "press",
+        "value": "150ms, scale(0.97) on buttons; instant Cool Canvas fill on rows",
+        "purpose": "Active state."
+      },
+      {
+        "name": "flash",
+        "value": "0.9s ease-out indigo ring fade",
+        "purpose": "A control the app changed for you (owner set by category)."
+      },
+      {
+        "name": "shake",
+        "value": "0.35s ±6px",
+        "purpose": "Validation error / wrong passcode."
+      },
+      {
+        "name": "draw",
+        "value": "0.9s ease-out stroke-dashoffset",
+        "purpose": "Chart line draw-in."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.2s linear infinite",
+        "purpose": "Skeleton loading."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation and transition disabled",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen or sheet.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>Add statements</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;font:600 15px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;border:none;cursor:pointer;transition: background-color .15s, transform .15s; background:var(--color-brand,#4b3fe4);color:#fff;box-shadow:0 1px 2px rgb(75 63 228 / .3);} .ds-btn-primary:hover{background:#3f34cf;} .ds-btn-primary:active{transform:scale(.97);} .ds-btn-primary:focus-visible{outline:2px solid var(--color-brand, #4b3fe4);outline-offset:2px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default button: white with a hairline border.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;font:600 15px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;border:none;cursor:pointer;transition: background-color .15s, transform .15s; background:#fff;color:#0f172a;border:1px solid #e2e6ef;} .ds-btn-secondary:hover{background:#f3f5fa;} .ds-btn-secondary:active{transform:scale(.97);} .ds-btn-secondary:focus-visible{outline:2px solid var(--color-brand, #4b3fe4);outline-offset:2px;}"
+    },
+    {
+      "name": "Soft Button",
+      "kind": "button",
+      "refersTo": "button-soft",
+      "description": "Supportive action on an indigo tint.",
+      "html": "<button class=\"ds-btn-soft\">Get a check-up</button>",
+      "css": ".ds-btn-soft{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;font:600 15px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;border:none;cursor:pointer;transition: background-color .15s, transform .15s; background:#ecebfd;color:#4b3fe4;} .ds-btn-soft:hover{background:#dfdcfb;} .ds-btn-soft:active{transform:scale(.97);} .ds-btn-soft:focus-visible{outline:2px solid var(--color-brand, #4b3fe4);outline-offset:2px;}"
+    },
+    {
+      "name": "Money Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Dollar field with steppers and tabular digits.",
+      "html": "<div class=\"ds-money\"><button aria-label=\"Lower\">−</button><span class=\"ds-money-sign\">$</span><input value=\"5200\" inputmode=\"decimal\"><button aria-label=\"Raise\">+</button></div>",
+      "css": ".ds-money{display:flex;align-items:center;height:48px;width:240px;border:1px solid #e2e6ef;border-radius:12px;background:#fff;transition:border-color .15s, box-shadow .15s;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;} .ds-money:focus-within{border-color:#4b3fe4;box-shadow:0 0 0 2px rgb(75 63 228 / .2);} .ds-money button{width:44px;height:100%;border:none;background:none;color:#566074;font-size:18px;cursor:pointer;} .ds-money button:hover{color:#0f172a;} .ds-money-sign{color:#566074;} .ds-money input{flex:1;min-width:0;border:none;outline:none;background:transparent;padding:0 6px;font:600 17px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-variant-numeric:tabular-nums;color:#0f172a;}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segmented",
+      "description": "Mutually exclusive choices on a canvas track.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\" class=\"on\">By income</button><button role=\"radio\" aria-checked=\"false\">50/50</button><button role=\"radio\" aria-checked=\"false\">Custom</button></div>",
+      "css": ".ds-seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:#f3f5fa;width:320px;} .ds-seg button{flex:1;height:44px;border:none;border-radius:12px;background:transparent;color:#566074;font:600 14px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;cursor:pointer;transition:all .2s;} .ds-seg button:hover{color:#0f172a;} .ds-seg button.on{background:#fff;color:#0f172a;box-shadow:0 1px 2px rgb(0 0 0 / .08);} .ds-seg button:focus-visible{outline:2px solid var(--color-brand, #4b3fe4);outline-offset:2px;}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat white container: hairline border, 24px corners.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-label\">Net worth</p><p class=\"ds-card-num\">$184,250</p></div>",
+      "css": ".ds-card{background:#fff;border:1px solid #e2e6ef;border-radius:24px;padding:20px;width:280px;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;} .ds-card-label{margin:0 0 8px;color:#566074;} .ds-card-num{margin:0;font:700 30px/1.1 ui-rounded, 'SF Pro Rounded', 'Nunito', ui-sans-serif, system-ui, sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#0f172a;}"
+    },
+    {
+      "name": "Settle-up Feature Card",
+      "kind": "card",
+      "refersTo": "card-feature",
+      "description": "The single Ink Indigo card on a screen.",
+      "html": "<div class=\"ds-feature\"><p class=\"ds-f-label\">Settle-up</p><p class=\"ds-f-num\">$412.80</p><p class=\"ds-f-text\">Partner Two sends Partner One $412.80.</p></div>",
+      "css": ".ds-feature{background:#4b3fe4;color:#fff;border-radius:24px;padding:20px;width:280px;display:grid;gap:12px;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;} .ds-feature p{margin:0;} .ds-f-label{color:rgb(255 255 255 / .75);} .ds-f-num{font:700 30px/1.1 ui-rounded, 'SF Pro Rounded', 'Nunito', ui-sans-serif, system-ui, sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;} .ds-f-text{font-size:15px;font-weight:500;color:rgb(255 255 255 / .9);}"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "nav-tab-active",
+      "description": "Five-tab phone navigation with an Indigo Mist pill on the active tab.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"on\" href=\"#\"><span><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/></svg></span>Home</a><a href=\"#\"><span><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg></span>Month</a><a href=\"#\"><span><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 12A9 9 0 1 1 12 3v9z\"/></svg></span>Budgets</a></nav>",
+      "css": ".ds-tabs{display:grid;grid-template-columns:repeat(3,1fr);width:300px;background:rgb(255 255 255 / .95);border-top:1px solid #e2e6ef;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;} .ds-tabs a{height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:600;color:#566074;text-decoration:none;transition:color .15s;} .ds-tabs a span{display:grid;place-items:center;width:48px;height:28px;border-radius:9999px;transition:background .15s;} .ds-tabs a.on{color:#4b3fe4;} .ds-tabs a.on span{background:#ecebfd;} .ds-tabs a:hover{color:#0f172a;} .ds-tabs a:focus-visible{outline:2px solid var(--color-brand, #4b3fe4);outline-offset:2px;}"
+    },
+    {
+      "name": "Partner Split Bar",
+      "kind": "custom",
+      "description": "Signature: partner colours side by side in proportion, with avatars.",
+      "html": "<div class=\"ds-split\"><div class=\"ds-bar\"><i style=\"width:67%;background:#4b3fe4\"></i><i style=\"width:33%;background:#d23a76\"></i></div><div class=\"ds-split-row\"><span><b class=\"ds-av\" style=\"background:#4b3fe4\">A</b>Alex 67%</span><span>33% Sam<b class=\"ds-av\" style=\"background:#d23a76\">S</b></span></div></div>",
+      "css": ".ds-split{width:300px;display:grid;gap:10px;font:600 15px/1 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-variant-numeric:tabular-nums;color:#0f172a;} .ds-bar{display:flex;height:16px;border-radius:9999px;overflow:hidden;gap:2px;} .ds-bar i{display:block;height:100%;} .ds-split-row{display:flex;justify-content:space-between;} .ds-split-row span{display:flex;align-items:center;gap:8px;} .ds-av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:9999px;color:#fff;font-size:11px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Two Hands, One Number",
+    "overview": "Two partners, each with their own colour (Ink Indigo and Rose), feed into one shared total that both can trust. The system is built around that meeting point. Every screen leads with a large, rounded, tabular number (left to spend, settle-up, still to pay, net worth), and the partner colours appear around it as avatars, split bars and shares. When something belongs to both of them, it turns Lagoon Teal.\n\nThe mood is bright and playful without losing the arithmetic. A cool off-white canvas holds white cards with generously rounded corners, and the one strong accent is Ink Indigo. Motion makes the app feel alive without making anyone wait. On the first visit to a screen its sections rise in on a short stagger (0.32s, 30ms steps). A return visit only fades in over 0.16s. Totals count up to their value, buttons and rows press in under the thumb, months slide in from the side you're moving toward, and success pops. Entrances use an exponential ease-out; exits are quicker than entrances. The motion never decorates idle content, and all of it switches off under reduced motion.\n\nThe app is phone-first and installed to the home screen. On phones it uses a bottom tab bar and bottom sheets. On a wider screen the same content sits beside a left sidebar and the sheets become centred dialogs.",
+    "keyCharacteristics": [
+      "One hero number per screen, set in the rounded display face with tabular figures.",
+      "Partner identity is carried by colour: Ink Indigo for Partner One, Rose for Partner Two, Lagoon Teal for shared.",
+      "Surfaces are flat at rest: white cards with a hairline border on a cool canvas.",
+      "Shapes are soft and rounded: 12px controls, 24px cards, 28px sheets, full pills.",
+      "Motion is playful but fast: a first-visit rise, then fades, count-ups, presses, slides and pops."
+    ],
+    "rules": [
+      {
+        "name": "The Partner Colour Rule",
+        "body": "Ink Indigo means Partner One, Rose means Partner Two, Lagoon Teal means shared, and Slate means personal. Do not reuse these four colours for any unrelated meaning. They are how the couple reads ownership at a glance.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tint, Not Fill Rule",
+        "body": "Category colours appear as a 12% tint behind an icon in the full colour, never as a large solid fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Every amount uses tabular figures (the `num` or `display` utility), so columns of money line up and count-ups do not jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Cards never carry a shadow. If something casts a shadow, it is floating (a menu, sheet or toast) or being pressed or selected.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** lead each screen with one Display hero number in tabular figures, labelled in muted text above it.",
+      "**Do** use Ink Indigo for Partner One, Rose for Partner Two and Lagoon Teal for shared, wherever ownership is shown.",
+      "**Do** keep cards flat: Surface White, a hairline border and 24px corners.",
+      "**Do** use the press feedback (`scale(.97)` on buttons, a Cool Canvas fill on rows), the first-visit rise, count-up and pop for success, and keep everything working with `prefers-reduced-motion`.",
+      "**Do** offer Undo for anything destructive, and say how many other records a bulk change will touch before it happens.",
+      "**Do** keep touch targets at 44px or more, inputs at 48px and body text in inputs at 16px or more.",
+      "**Do** show category colour as a 12% tint behind an icon in full colour."
+    ],
+    "donts": [
+      "**Don't** put shadows on resting cards. Shadows belong to menus, sheets, toasts and pressed or selected affordances.",
+      "**Don't** reuse the partner or shared colours for unrelated meanings.",
+      "**Don't** set money in proportional figures or in the body face at hero size.",
+      "**Don't** fill more than one card per screen with Ink Indigo. The feature card is the exception that makes it stand out.",
+      "**Don't** use Blush for text. It is an illustration and logo tint."
+    ]
+  }
+}
