@@ -152,7 +152,7 @@ let toastT;function toast(msg){const t=$('#toast');t.textContent=msg;t.classList
 /* ---------- state ---------- */
 const KEY='coupleBudget.v1',CUR='coupleBudget.cur';
 function defaults(){return{
-  settings:{p1:'Partner 1',p2:'Partner 2',split:67,sav1:637.35,sav2:303.75,workerUrl:'',passcode:'',model:'claude-sonnet-5-5',sheetUrl:'',token:rand(),remember:true},
+  settings:{p1:'Partner 1',p2:'Partner 2',split:67,sav1:637.35,sav2:303.75,workerUrl:'https://couple-budget.kaetojn.workers.dev/',passcode:'',model:'claude-sonnet-5-5',sheetUrl:'',token:rand(),remember:true},
   categories:[['Rent payment',3400],['Mortgage payment',200],['Condo fees',600],['Property taxes',350],['Utilities',150],['Car payment',365],['Car insurance',280],['Fuel',100],['Groceries',1000],['Food delivery',400],['Household supplies',150],['Subscriptions',100]]
     .map(([name,budget])=>({name,budget,scope:'shared',kind:'expense'}))
     .concat(['Dining out','Shopping','Transit & rides','Health','Entertainment','Travel','Personal care','Gifts','Fees & interest','Other'].map(name=>({name,budget:0,scope:'personal',kind:'expense'})),
