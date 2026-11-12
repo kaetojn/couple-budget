@@ -10,6 +10,10 @@ import type { Doc } from './types';
 export const store = getDefaultStore();
 const DOC_KEY = 'coupleBudget.v2';
 const PASS_KEY = 'coupleBudget.pass';
+/** Set while this device has changes the cloud has not received yet. */
+const DIRTY_KEY = 'coupleBudget.unsynced';
+const isDirty = () => { try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch { return false; } };
+const setDirty = (on: boolean) => { try { on ? localStorage.setItem(DIRTY_KEY, '1') : localStorage.removeItem(DIRTY_KEY); } catch { /* ignore */ } };
 
 function readLocal(): Doc {
   try {
@@ -48,32 +52,52 @@ const patchSession = (patch: Partial<Session>) => store.set(sessionAtom, s => ({
 let synced = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
+let retry: ReturnType<typeof setTimeout> | undefined;
+
 async function push() {
   const { passcode, demo } = store.get(sessionAtom);
   if (!synced || !passcode || demo) return;
+  clearTimeout(timer);
+  clearTimeout(retry);
+  timer = undefined;
+  const doc = store.get(docAtom);
   try {
-    await api.save(passcode, { ...store.get(docAtom), updatedAt: new Date().toISOString() });
-    patchSession({ sync: 'saved' });
+    await api.save(passcode, doc);
+    // Only clear the flag if nothing changed while the save was in flight.
+    if (store.get(docAtom) === doc) { setDirty(false); patchSession({ sync: 'saved' }); }
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) return lock();
     patchSession({ sync: 'local' });
+    // Keep trying quietly; the change is safe on this device in the meantime.
+    retry = setTimeout(() => void push(), 15000);
   }
+}
+
+/** Sends any waiting change now, for when the app is being closed or hidden. */
+export function flush() {
+  if (!store.get(sessionAtom).passcode) return;
+  // Never reached the cloud this session (opened offline): connect first, which also sends newer local changes.
+  if (!synced) void pull(true);
+  else if (timer || isDirty()) void push();
 }
 
 function persist(doc: Doc) {
   const { passcode, demo } = store.get(sessionAtom);
   if (demo) return;
   try { localStorage.setItem(DOC_KEY, JSON.stringify(doc)); } catch { /* storage full or blocked */ }
-  if (!synced || !passcode) return;
+  if (!passcode) return;
+  setDirty(true);
+  if (!synced) return;
   patchSession({ sync: 'saving' });
   clearTimeout(timer);
-  timer = setTimeout(push, 2000);
+  timer = setTimeout(() => void push(), 800);
 }
 
 /** The one way to change data: mutate a copy, then it is saved locally and synced. */
 export function updateDoc(change: (doc: Doc) => void) {
   const next = structuredClone(store.get(docAtom));
   change(next);
+  next.updatedAt = new Date().toISOString();
   store.set(docAtom, next);
   persist(next);
 }
@@ -84,18 +108,27 @@ export function snapshotNetWorth(doc: Doc) {
   doc.snapshots[monthKey()] = { assets, debts };
 }
 
-export async function pull() {
-  const { passcode } = store.get(sessionAtom);
-  if (!passcode) return;
-  patchSession({ loading: true });
+/**
+ * Loads the household from the cloud. If this device has changes the cloud never received
+ * (closed too quickly, or offline) and they are newer, they are kept and sent instead.
+ * A quiet pull (when the app comes back to the front) shows no spinner or message.
+ */
+export async function pull(quiet = false) {
+  const { passcode, demo } = store.get(sessionAtom);
+  if (!passcode || demo) return;
+  if (quiet && timer) return;
+  if (!quiet) patchSession({ loading: true });
   try {
     const data = await api.load(passcode);
     synced = true;
-    if (data) {
-      const doc = migrate(data);
-      store.set(docAtom, doc);
-      store.set(monthAtom, latestMonth(doc));
-      try { localStorage.setItem(DOC_KEY, JSON.stringify(doc)); } catch { /* ignore */ }
+    const local = store.get(docAtom);
+    const remote = data ? migrate(data) : null;
+    if (remote && !(isDirty() && (local.updatedAt ?? '') > (remote.updatedAt ?? ''))) {
+      if (quiet && remote.updatedAt === local.updatedAt) return void patchSession({ sync: 'saved' });
+      store.set(docAtom, remote);
+      if (!quiet) store.set(monthAtom, latestMonth(remote));
+      try { localStorage.setItem(DOC_KEY, JSON.stringify(remote)); } catch { /* ignore */ }
+      setDirty(false);
       patchSession({ sync: 'saved' });
     } else {
       await push();
@@ -104,10 +137,10 @@ export async function pull() {
     if (e instanceof ApiError && e.status === 401) lock();
     else {
       patchSession({ sync: 'local' });
-      toast(`Working on this device only. ${(e as Error).message}`);
+      if (!quiet) toast(`Working on this device only. ${(e as Error).message}`);
     }
   } finally {
-    patchSession({ loading: false });
+    if (!quiet) patchSession({ loading: false });
   }
 }
 
@@ -120,6 +153,7 @@ export async function unlock(passcode: string) {
 }
 
 export function lock() {
+  flush();
   synced = false;
   try { localStorage.removeItem(PASS_KEY); } catch { /* ignore */ }
   patchSession({ passcode: '', demo: false, sync: 'idle' });
@@ -138,6 +172,6 @@ export function leaveDemo() {
 }
 
 export function eraseDevice() {
-  try { localStorage.removeItem(DOC_KEY); localStorage.removeItem(PASS_KEY); localStorage.removeItem('coupleBudget.v1'); localStorage.removeItem('coupleBudget.cur'); } catch { /* ignore */ }
+  try { localStorage.removeItem(DOC_KEY); localStorage.removeItem(PASS_KEY); localStorage.removeItem('coupleBudget.v1'); localStorage.removeItem('coupleBudget.cur'); localStorage.removeItem(DIRTY_KEY); } catch { /* ignore */ }
   location.reload();
 }
