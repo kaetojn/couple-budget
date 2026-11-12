@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Couple Budget</title>
+<style>
+:root{
+  --bg:#f5f5f2; --surface:#fff; --text:#15171c; --muted:#4d5361; --line:#deded9;
+  --accent:#0b6b50; --accent-soft:#e3f1ec; --over:#b3261e; --over-soft:#fbe9e7;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:40px;
+  --r-outer:16px; --r-inner:8px; /* inner = outer - 8px padding */
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:var(--s5);padding:var(--s4) var(--s5);background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header strong{font-size:16px}
+nav{display:flex;gap:var(--s1)}
+nav button{border:0;background:none;font:inherit;color:var(--muted);padding:var(--s2) var(--s3);border-radius:var(--r-inner);cursor:pointer}
+nav button:hover{color:var(--text)}
+nav button[aria-current]{color:var(--accent);background:var(--accent-soft);font-weight:600}
+main{max-width:1040px;margin:0 auto;padding:var(--s6) var(--s5)}
+h1{font-size:30px;line-height:1.2;margin:0 0 var(--s2);text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:17px;margin:0 0 var(--s3)}
+p{margin:0 0 var(--s3)}
+.lead{color:var(--muted);max-width:62ch;margin-bottom:var(--s5)}
+.muted{color:var(--muted)}
+.num,td.n,th.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+section{margin-bottom:var(--s6)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-outer);padding:var(--s5)}
+.grid{display:grid;gap:var(--s4)}
+.g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:760px){.g3,.g2{grid-template-columns:1fr}}
+.row{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+button.btn,label.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:var(--s2) var(--s4);border-radius:var(--r-inner);cursor:pointer;transition:background .15s,transform .1s}
+button.btn:hover{background:var(--bg)}
+button.btn:active{transform:scale(.98)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:var(--s3) var(--s5);font-size:16px}
+button.primary:hover{background:#095841}
+button:disabled{opacity:.55;cursor:default}
+button.link{border:0;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-inner);padding:var(--s2) var(--s3);max-width:100%}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label.f{display:grid;gap:var(--s1);font-weight:600}
+label.f span{font-weight:400;color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse}
+th{font-size:13px;color:var(--muted);font-weight:600;text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line)}
+td{padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.off td{color:var(--muted)} tr.off td.desc{text-decoration:line-through}
+td select{padding:var(--s1) var(--s2)}
+.drop{padding:var(--s2);border-radius:var(--r-outer);background:var(--surface);border:1px solid var(--line)}
+.drop .zone{display:block;border:1.5px dashed #b9b9b2;border-radius:var(--r-inner);padding:var(--s5) var(--s4);text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop .zone:hover,.drop .zone.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop input[type=file]{display:none}
+.drop ul{list-style:none;margin:var(--s2) 0 0;padding:0 var(--s2)}
+.drop li{display:flex;justify-content:space-between;gap:var(--s2);padding:var(--s1) 0;font-size:14px}
+.drop li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hero{display:grid;grid-template-columns:1.4fr 1fr;gap:var(--s4)}
+@media(max-width:760px){.hero{grid-template-columns:1fr}}
+.big{font-size:44px;line-height:1.1;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.settle{background:var(--accent);color:#fff;border-color:var(--accent)}
+.settle .muted{color:#d5ebe3}
+.bar{height:8px;background:#ebebe6;border-radius:4px;overflow:hidden;min-width:120px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px;width:0;transition:width .6s cubic-bezier(.2,.7,.2,1)}
+.bar.over i{background:var(--over)}
+.overtxt{color:var(--over);font-weight:600}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.jobs{list-style:none;padding:0;margin:var(--s4) 0 0;display:grid;gap:var(--s2)}
+.jobs li{display:flex;gap:var(--s3);align-items:center}
+.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;flex:none}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--line);flex:none}
+.dot.ok{background:var(--accent)} .dot.err{background:var(--over)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skel{height:14px;border-radius:4px;background:linear-gradient(90deg,#ecece7 25%,#f6f6f3 50%,#ecece7 75%);background-size:200% 100%;animation:sk 1.2s linear infinite;margin-bottom:var(--s2)}
+@keyframes sk{to{background-position:-200% 0}}
+#toast{position:fixed;left:50%;bottom:var(--s5);transform:translate(-50%,20px);background:var(--text);color:#fff;padding:var(--s3) var(--s4);border-radius:var(--r-inner);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.insights{margin:0;padding-left:20px} .insights li{margin-bottom:var(--s2)}
+pre,textarea.code{font:12.5px/1.5 ui-monospace,Menlo,monospace}
+textarea.code{width:100%;height:220px}
+ol.steps{padding-left:20px;margin:0 0 var(--s4)} ol.steps li{margin-bottom:var(--s1)}
+.scroll{overflow-x:auto}
+#menu,#scrim{display:none}
+td .mlabel{display:none}
+@media(max-width:760px){
+  body{font-size:16px}
+  header{padding:var(--s2) var(--s4);justify-content:space-between;min-height:56px}
+  #menu{display:grid;place-items:center;width:44px;height:44px;margin-right:-8px;border:0;background:none;color:var(--text);border-radius:var(--r-inner);cursor:pointer}
+  #menu path{transition:transform .2s,opacity .15s;transform-origin:12px 12px}
+  .menu-open #menu .l1{transform:translateY(5px) rotate(45deg)}
+  .menu-open #menu .l2{opacity:0}
+  .menu-open #menu .l3{transform:translateY(-5px) rotate(-45deg)}
+  nav{position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;background:var(--surface);border-bottom:1px solid var(--line);padding:var(--s2);
+    visibility:hidden;opacity:0;transform:translateY(-8px);transition:opacity .18s,transform .18s,visibility .18s}
+  .menu-open nav{visibility:visible;opacity:1;transform:none}
+  nav button{text-align:left;padding:var(--s3) var(--s4);min-height:48px;font-size:17px;color:var(--text)}
+  #scrim{display:block;position:fixed;inset:0;background:rgba(21,23,28,.35);z-index:4;opacity:0;pointer-events:none;transition:opacity .18s}
+  .menu-open #scrim{opacity:1;pointer-events:auto}
+  main{padding:var(--s5) var(--s4)}
+  h1{font-size:24px} .big{font-size:36px}
+  section{margin-bottom:var(--s5)}
+  .card{padding:var(--s4)}
+  input,select,textarea{font-size:16px;min-height:44px}
+  input[type=checkbox]{min-height:0;width:22px;height:22px}
+  button.btn,label.btn{min-height:44px}
+  .actions{flex-direction:column;align-items:stretch}
+  .actions>*{width:100%;text-align:center}
+  .actions .row{flex-direction:column;align-items:stretch}
+  .actions input[type=search],.actions select{width:100%}
+  .actions label.row{flex-direction:row;align-items:center;min-height:44px}
+  button.link{padding:var(--s2) 0}
+  .drop .zone{padding:var(--s4)}
+  label.f[style]{max-width:none!important}
+  /* tables become stacked rows */
+  table.stack thead{display:none}
+  table.stack tr{display:grid;grid-template-columns:1fr auto;gap:var(--s1) var(--s3);align-items:center;padding:var(--s3) var(--s2);border-bottom:1px solid var(--line)}
+  table.stack tr:last-child{border-bottom:0}
+  table.stack td{padding:0;border:0;min-width:0}
+  table.stack td.full{grid-column:1/-1}
+  table.stack td.left{text-align:left}
+  table.stack td.hide{display:none}
+  table.stack td.strong{font-weight:600}
+  table.stack select,table.stack input:not([type=checkbox]){width:100%}
+  table.stack .bar{min-width:0;margin:var(--s1) 0}
+  td .mlabel{display:inline;color:var(--muted)}
+  .o1{order:1}.o2{order:2}.o3{order:3}.o4{order:4}.o5{order:5}.o6{order:6}.o7{order:7}
+  td.inc label{display:flex;align-items:center;gap:var(--s2);padding-top:var(--s1)}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><strong>Couple Budget</strong><button id="menu" aria-label="Menu" aria-expanded="false" aria-controls="nav"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg></button><nav id="nav"></nav></header>
+<div id="scrim"></div>
+<main id="view"></main>
+<div id="toast" role="status"></div>
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const cad=new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'});
+const money=n=>cad.format(Math.round((n||0)*100)/100);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rand=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,'0')).join('');
+const uid=()=>Math.random().toString(36).slice(2,10);
+const monthName=m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleString('en-CA',{month:'long',year:'numeric'})};
+function prevMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+let toastT;function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200)}
+
+/* ---------- state ---------- */
+const KEY='coupleBudget.v1',CUR='coupleBudget.cur';
+function defaults(){return{
+  settings:{p1:'Partner 1',p2:'Partner 2',split:67,sav1:637.35,sav2:303.75,workerUrl:'',passcode:'',model:'claude-sonnet-5-5',sheetUrl:'',token:rand(),remember:true},
+  categories:[['Rent payment',3400],['Mortgage payment',200],['Condo fees',600],['Property taxes',350],['Utilities',150],['Car payment',365],['Car insurance',280],['Fuel',100],['Groceries',1000],['Food delivery',400],['Household supplies',150],['Subscriptions',100]]
+    .map(([name,budget])=>({name,budget,scope:'shared',kind:'expense'}))
+    .concat(['Dining out','Shopping','Transit & rides','Health','Entertainment','Travel','Personal care','Gifts','Fees & interest','Other'].map(name=>({name,budget:0,scope:'personal',kind:'expense'})),
+    [{name:'Joint savings',budget:0,scope:'shared',kind:'savings',locked:true},{name:'Income',budget:0,scope:'personal',kind:'income',locked:true},{name:'Transfer',budget:0,scope:'personal',kind:'transfer',locked:true}]),
+  rules:[],history:{}}}
+function load(){const d=defaults();try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){Object.assign(d.settings,s.settings||{});if(s.categories?.length)d.categories=s.categories;d.rules=s.rules||[];d.history=s.history||{}}}catch(e){}return d}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save in this browser: '+e.message)}}
+function saveCur(){try{localStorage.setItem(CUR,JSON.stringify({month:cur.month,tx:cur.tx,insights:cur.insights}))}catch(e){}}
+let S=load();
+let cur={month:prevMonth(),files:{p1:[],p2:[],joint:[]},tx:[],insights:'',jobs:[],busy:false,insBusy:false};
+try{const c=JSON.parse(localStorage.getItem(CUR)||'null');if(c){cur.month=c.month||cur.month;cur.tx=c.tx||[];cur.insights=c.insights||''}}catch(e){}
+let tab=cur.tx.length?'summary':'statements';
+let rv={q:'',who:'all'};
+
+const ready=()=>S.settings.workerUrl&&S.settings.passcode;
+const who=k=>k==='p1'?S.settings.p1:k==='p2'?S.settings.p2:k==='joint'?'Joint account':'Shared';
+const cat=n=>S.categories.find(c=>c.name===n)||S.categories.find(c=>c.name==='Other')||S.categories[0];
+const personal=t=>t.paidBy==='joint'?'shared':t.paidBy;
+const mkey=d=>{const k=String(d).toUpperCase().replace(/[^A-Z& ]/g,' ').replace(/\s+/g,' ').trim();return k.split(' ').slice(0,2).join(' ')};
+function applyRules(t){const k=String(t.desc).toUpperCase().replace(/[^A-Z& ]/g,' ').replace(/\s+/g,' ');for(const r of S.rules)if(k.includes(r.match)){t.category=r.category;t.owner=r.owner==='shared'?'shared':personal(t)}return t}
+
+/* ---------- maths ---------- */
+function compute(txs){
+  const p1share=S.settings.split/100;
+  const r={byCat:{},total:0,shared:0,pers:{p1:0,p2:0},sharedPaid:{p1:0,p2:0,joint:0},sav:{p1:0,p2:0,joint:0},income:0,cross:0};
+  for(const t of txs){ if(t.exclude)continue; const c=cat(t.category);
+    if(c.kind==='transfer')continue;
+    if(c.kind==='income'){r.income+=-t.amount;continue}
+    if(c.kind==='savings'){r.sav[t.paidBy]+=t.amount;continue}
+    r.byCat[c.name]=(r.byCat[c.name]||0)+t.amount; r.total+=t.amount;
+    if(t.owner==='shared'){r.shared+=t.amount;r.sharedPaid[t.paidBy]+=t.amount}
+    else{r.pers[t.owner]+=t.amount;
+      if(t.owner==='p2'&&t.paidBy==='p1')r.cross+=t.amount;   // p1 covered p2's personal cost
+      if(t.owner==='p1'&&t.paidBy==='p2')r.cross-=t.amount;}
+  }
+  const pool=r.sharedPaid.p1+r.sharedPaid.p2;
+  r.fair={p1:pool*p1share,p2:pool*(1-p1share)};
+  const diff=r.sharedPaid.p1-r.fair.p1+r.cross;   // >0: p2 owes p1
+  r.settle=Math.abs(diff)<0.005?null:diff>0?{from:'p2',to:'p1',amount:diff}:{from:'p1',to:'p2',amount:-diff};
+  r.budget=S.categories.filter(c=>c.kind==='expense').reduce((a,c)=>a+(+c.budget||0),0);
+  r.allIn={p1:r.pers.p1+r.shared*p1share,p2:r.pers.p2+r.shared*(1-p1share)};
+  return r}
+const settleText=r=>r.settle?`${who(r.settle.from)} owes ${who(r.settle.to)} ${money(r.settle.amount)}`:'You are even this month';
+
+/* ---------- Claude ---------- */
+async function claude(content,system,maxTokens){
+  const res=await fetch(S.settings.workerUrl,{method:'POST',headers:{'content-type':'application/json','x-app-passcode':S.settings.passcode},
+    body:JSON.stringify({model:S.settings.model,max_tokens:maxTokens,system,messages:[{role:'user',content}]})});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(j.error?.message||('Request failed ('+res.status+')'));
+  return{text:(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join(''),truncated:j.stop_reason==='max_tokens'}}
+const readB64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=()=>no(r.error);r.readAsDataURL(f)});
+function extractPrompt(owner){
+  const cats=S.categories.map(c=>`- ${c.name} (${c.kind==='expense'?c.scope:c.kind})`).join('\n');
+  const rules=S.rules.length?'\nThe couple has set these rules; follow them:\n'+S.rules.map(r=>`- description contains "${r.match}" -> ${r.category}, ${r.owner}`).join('\n'):'';
+  return `Extract every transaction from this Canadian bank or credit card statement (CIBC or TD). The account belongs to: ${owner}. The budget month is ${cur.month}; use it to infer the year of dates.
+
+Categories (name, then whether it is normally shared by the couple or personal):
+${cats}
+${rules}
+
+Rules:
+- "a" is the amount in dollars: positive when money leaves the account (purchases, debits, withdrawals, fees, interest charged), negative when money comes in (deposits, refunds, payments received on a credit card).
+- Use "Transfer" for credit card payments, moves between the couple's own accounts and e-transfers between the two partners. Use "Joint savings" for contributions to a joint savings account. Use "Income" for payroll and other deposits.
+- "o" is "shared" when the cost belongs to the household, otherwise "personal".
+- Skip opening and closing balances and summary lines. Do not invent transactions.
+
+Reply with JSON only, no prose and no code fence:
+{"transactions":[{"d":"YYYY-MM-DD","t":"description as printed","a":12.34,"c":"category name","o":"shared"}]}`}
+async function extractFile(file,k){
+  const isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
+  const content=isPdf?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:await readB64(file)}},{type:'text',text:extractPrompt(who(k))}]
+                     :[{type:'text',text:extractPrompt(who(k))+'\n\nStatement contents:\n'+await file.text()}];
+  const out=await claude(content,'You are a meticulous bookkeeper. You output strict JSON.',16000);
+  const a=out.text.indexOf('{'),b=out.text.lastIndexOf('}');
+  if(a<0||b<0)throw new Error('The model did not return transactions');
+  let data;try{data=JSON.parse(out.text.slice(a,b+1))}catch(e){throw new Error(out.truncated?'Statement too long for one pass; split the PDF and retry':'Could not read the model reply')}
+  return(data.transactions||[]).filter(t=>t&&isFinite(+t.a)).map(t=>{
+    const tx={id:uid(),date:String(t.d||''),desc:String(t.t||''),amount:+t.a,category:cat(t.c).name,paidBy:k,source:file.name,exclude:false};
+    tx.owner=t.o==='shared'||k==='joint'?'shared':k; return applyRules(tx)})}
+async function analyze(){
+  if(!ready()){toast('Add your Worker address and passcode in Settings first');tab='settings';return render()}
+  const list=['p1','p2','joint'].flatMap(k=>cur.files[k].map(f=>({f,k})));
+  if(!list.length)return toast('Add at least one statement');
+  cur.busy=true;cur.tx=[];cur.insights='';cur.jobs=list.map(x=>({name:x.f.name,k:x.k,status:'waiting'}));render();
+  for(let i=0;i<list.length;i++){const j=cur.jobs[i];j.status='reading';renderJobs();
+    try{const tx=await extractFile(list[i].f,list[i].k);cur.tx.push(...tx);j.status='done';j.msg=tx.length+' transactions'}
+    catch(e){j.status='error';j.msg=e.message}
+    renderJobs()}
+  cur.tx.sort((a,b)=>a.date.localeCompare(b.date));cur.busy=false;saveCur();
+  if(cur.tx.length){tab='review';render();toast(cur.tx.length+' transactions categorized. Check them, then open the summary.');makeInsights()}
+  else render()}
+async function makeInsights(){
+  if(!ready()||!cur.tx.length)return;
+  cur.insBusy=true;if(tab==='summary')render();
+  const r=compute(cur.tx);
+  const cats=S.categories.filter(c=>c.kind==='expense'&&(c.budget||r.byCat[c.name])).map(c=>`${c.name}: spent ${(r.byCat[c.name]||0).toFixed(2)}, budget ${c.budget||'none'}`).join('\n');
+  const merch={};cur.tx.forEach(t=>{if(!t.exclude&&cat(t.category).kind==='expense'){const k=mkey(t.desc);merch[k]=(merch[k]||0)+t.amount}});
+  const top=Object.entries(merch).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([k,v])=>`${k}: ${v.toFixed(2)}`).join('\n');
+  const hist=Object.entries(S.history).filter(([m])=>m!==cur.month).sort().slice(-6).map(([m,h])=>{const x=compute(h.tx);return `${m}: total ${x.total.toFixed(2)}; `+Object.entries(x.byCat).map(([c,v])=>`${c} ${v.toFixed(0)}`).join(', ')}).join('\n');
+  const prompt=`Budget month ${cur.month} for a couple, ${S.settings.p1} and ${S.settings.p2}. Shared costs are split ${S.settings.split}/${100-S.settings.split}. Amounts in CAD.
+
+By category:
+${cats}
+
+Total spent ${r.total.toFixed(2)} against budget ${r.budget.toFixed(2)}. Shared ${r.shared.toFixed(2)}. ${S.settings.p1} personal ${r.pers.p1.toFixed(2)}. ${S.settings.p2} personal ${r.pers.p2.toFixed(2)}. ${settleText(r)}.
+Joint savings contributions: ${S.settings.p1} ${r.sav.p1.toFixed(2)} (target ${S.settings.sav1}), ${S.settings.p2} ${r.sav.p2.toFixed(2)} (target ${S.settings.sav2}).
+
+Top merchants:
+${top}
+${hist?'\nEarlier months:\n'+hist:''}
+
+Write 4 to 6 short, specific observations the couple can act on. Use real numbers. One per line, no numbering, no bullets, no headings, no bold.`;
+  try{cur.insights=(await claude([{type:'text',text:prompt}],'You are a plain-spoken household budgeting analyst.',1200)).text.trim()}
+  catch(e){cur.insights='';toast('Insights failed: '+e.message)}
+  cur.insBusy=false;saveCur();if(tab==='summary')render()}
+
+/* ---------- export ---------- */
+const safe=v=>typeof v==='string'&&/^[=+\-@]/.test(v)?"'"+v:v;
+function sheetRows(){
+  const r=compute(cur.tx),rows=[],bold=[];const H=(...a)=>{bold.push(rows.length);rows.push(a)};
+  H('Budget summary',monthName(cur.month));rows.push([]);
+  H('Category','Type','Budget','Actual','Remaining');
+  S.categories.filter(c=>c.kind==='expense'&&(c.budget||r.byCat[c.name])).forEach(c=>rows.push([c.name,c.scope,+c.budget||0,+(r.byCat[c.name]||0).toFixed(2),+((+c.budget||0)-(r.byCat[c.name]||0)).toFixed(2)]));
+  H('Total','',r.budget,+r.total.toFixed(2),+(r.budget-r.total).toFixed(2));rows.push([]);
+  H('Split');
+  rows.push(['Shared spending',+r.shared.toFixed(2)],[S.settings.p1+' personal',+r.pers.p1.toFixed(2)],[S.settings.p2+' personal',+r.pers.p2.toFixed(2)],
+    [S.settings.p1+' paid toward shared',+r.sharedPaid.p1.toFixed(2)],[S.settings.p2+' paid toward shared',+r.sharedPaid.p2.toFixed(2)],['Settle-up',settleText(r)],
+    [S.settings.p1+' joint savings',+r.sav.p1.toFixed(2),'target',+S.settings.sav1],[S.settings.p2+' joint savings',+r.sav.p2.toFixed(2),'target',+S.settings.sav2]);
+  if(cur.insights){rows.push([]);H('Insights');cur.insights.split('\n').filter(x=>x.trim()).forEach(l=>rows.push([l.trim()]))}
+  rows.push([]);H('Transactions');H('Date','Description','Amount','Category','Belongs to','Paid from','Statement','Counted');
+  cur.tx.forEach(t=>rows.push([t.date,t.desc,t.amount,t.category,who(t.owner),who(t.paidBy),t.source,t.exclude?'no':'yes']));
+  return{rows:rows.map(r=>r.map(safe)),bold}}
+function saveMonth(){S.history[cur.month]={tx:cur.tx,insights:cur.insights,savedAt:new Date().toISOString()};save()}
+async function exportSheet(btn){
+  if(!S.settings.sheetUrl){toast('Connect your Google Sheet in Settings first');tab='settings';return render()}
+  const old=btn.textContent;btn.disabled=true;btn.textContent='Sending to Google Sheets…';
+  const {rows,bold}=sheetRows(),body=JSON.stringify({token:S.settings.token,tabName:monthName(cur.month),rows,boldRows:bold});
+  try{const res=await fetch(S.settings.sheetUrl,{method:'POST',body});const j=await res.json();
+    if(!j.ok)throw new Error(j.error||'Sheet rejected the data');saveMonth();toast('Added tab "'+j.tab+'" to your Google Sheet')}
+  catch(e){ if(e instanceof TypeError){try{await fetch(S.settings.sheetUrl,{method:'POST',body,mode:'no-cors'});saveMonth();toast('Sent. Check your Google Sheet for the new tab.')}catch(e2){toast('Could not reach Google Sheets: '+e2.message)}}
+    else toast('Export failed: '+e.message)}
+  btn.disabled=false;btn.textContent=old}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportCsv(){const q=v=>'"'+String(safe(v)).replace(/"/g,'""')+'"';download('budget-'+cur.month+'.csv',sheetRows().rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv')}
+
+/* ---------- views ---------- */
+const TABS=[['statements','Statements'],['review','Review'],['summary','Summary'],['history','History'],['settings','Settings']];
+function render(){
+  $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-act="tab" data-tab="${k}" ${tab===k?'aria-current="page"':''}>${l}</button>`).join('');
+  $('#view').innerHTML=V[tab]();
+  if(tab==='review')renderRows();
+  requestAnimationFrame(()=>document.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%'))}
+const drop=k=>`<div class="drop"><label class="zone" data-zone="${k}"><input type="file" multiple accept=".pdf,.csv,.txt" data-ch="files" data-k="${k}"><strong>${esc(who(k))}</strong><br><span class="muted">Drop PDF statements or click to choose</span></label>
+  ${cur.files[k].length?`<ul>${cur.files[k].map((f,i)=>`<li><span>${esc(f.name)}</span><button class="link" data-act="rmfile" data-k="${k}" data-i="${i}">Remove</button></li>`).join('')}</ul>`:''}</div>`;
+function jobsHtml(){return cur.jobs.map(j=>`<li>${j.status==='reading'?'<span class="spin"></span>':`<span class="dot ${j.status==='done'?'ok':j.status==='error'?'err':''}"></span>`}<span>${esc(j.name)} <span class="muted">· ${esc(who(j.k))}</span></span><span class="${j.status==='error'?'overtxt':'muted'}">${esc(j.status==='reading'?'Reading and categorizing…':j.status==='waiting'?'Waiting':j.msg||'')}</span></li>`).join('')}
+function renderJobs(){const el=$('#jobs');if(el)el.innerHTML=jobsHtml()}
+const V={
+statements(){const n=cur.files.p1.length+cur.files.p2.length+cur.files.joint.length;return `
+  <h1>Add this month's CIBC and TD statements</h1>
+  <p class="lead">Put each statement under the person whose account it is. Claude reads every line, assigns a category and marks it shared or personal. Statements go from this browser through your private Worker to Claude, and are not stored anywhere else.</p>
+  <section><label class="f" style="max-width:220px">Budget month<input type="month" value="${esc(cur.month)}" data-ch="month"></label></section>
+  <section class="grid g3">${drop('p1')}${drop('p2')}${drop('joint')}</section>
+  <section><div class="row actions"><button class="btn primary" data-act="analyze" ${cur.busy?'disabled':''}>${cur.busy?'Analyzing…':n?`Analyze ${n} statement${n>1?'s':''}`:'Analyze statements'}</button>
+    ${cur.busy?'':'<button class="link" data-act="sample">Try it with sample data</button>'}</div>
+    <ul class="jobs" id="jobs">${jobsHtml()}</ul></section>`},
+review(){if(!cur.tx.length)return empty('No transactions to review yet','Analyze your statements first, or load the sample data to see how review works.');
+  return `<h1>Check ${cur.tx.length} transactions for ${esc(monthName(cur.month))}</h1>
+  <p class="lead">Fix anything Claude got wrong. Each correction is remembered for that merchant and applied to future months.</p>
+  <section><div class="row spread actions" style="margin-bottom:var(--s4)"><div class="row">
+    <input type="search" placeholder="Search descriptions" value="${esc(rv.q)}" data-in="q" aria-label="Search descriptions">
+    <select data-ch="rvwho" aria-label="Filter by account"><option value="all">All accounts</option>${['p1','p2','joint'].map(k=>`<option value="${k}" ${rv.who===k?'selected':''}>${esc(who(k))}</option>`).join('')}</select>
+    <label class="row" style="gap:var(--s2)"><input type="checkbox" data-ch="remember" ${S.settings.remember?'checked':''}>Remember my corrections</label></div>
+    <button class="btn primary" data-act="tab" data-tab="summary">See the summary</button></div>
+  <div class="card scroll" style="padding:var(--s2)"><table class="stack"><thead><tr><th>Date</th><th>Description</th><th class="n">Amount</th><th>Category</th><th>Belongs to</th><th>Paid from</th><th>Count it</th></tr></thead><tbody id="rows"></tbody></table></div></section>`},
+summary(){if(!cur.tx.length)return empty('Nothing to summarize yet','Analyze your statements first, or load the sample data to see a finished month.');
+  const r=compute(cur.tx),left=r.budget-r.total;
+  const cats=S.categories.filter(c=>c.kind==='expense'&&(c.budget||r.byCat[c.name]));
+  const sv=(k,t)=>{const got=r.sav[k];return `<div class="stat"><span class="muted">${esc(who(k))} to joint savings</span><b>${money(got)}</b><span class="${got+0.005<t?'overtxt':'muted'}">of ${money(t)} target</span></div>`};
+  return `<h1>${esc(monthName(cur.month))}: ${money(r.total)} spent of a ${money(r.budget)} budget</h1>
+  <p class="lead">${left>=0?`${money(left)} under budget overall.`:`${money(-left)} over budget overall.`} Shared costs are split ${S.settings.split}/${100-S.settings.split}.</p>
+  <section class="hero">
+    <div class="card settle"><span class="muted">Settle-up</span><div class="big" style="margin:var(--s2) 0">${r.settle?money(r.settle.amount):'$0.00'}</div>
+      <p style="font-size:17px;font-weight:600;margin:0 0 var(--s2)">${esc(settleText(r))}</p>
+      <span class="muted">${esc(S.settings.p1)} paid ${money(r.sharedPaid.p1)} of shared costs (fair share ${money(r.fair.p1)}). ${esc(S.settings.p2)} paid ${money(r.sharedPaid.p2)} (fair share ${money(r.fair.p2)}).${r.sharedPaid.joint?` ${money(r.sharedPaid.joint)} came from the joint account and is left out.`:''}</span></div>
+    <div class="card grid" style="align-content:space-between">
+      <div class="stat"><span class="muted">Shared spending</span><b>${money(r.shared)}</b></div>
+      <div class="stat"><span class="muted">${esc(S.settings.p1)}, personal plus share</span><b>${money(r.allIn.p1)}</b><span class="muted">${money(r.pers.p1)} personal</span></div>
+      <div class="stat"><span class="muted">${esc(S.settings.p2)}, personal plus share</span><b>${money(r.allIn.p2)}</b><span class="muted">${money(r.pers.p2)} personal</span></div></div>
+  </section>
+  <section><h2>Budget against actual spending</h2><div class="card scroll" style="padding:var(--s2)"><table class="stack"><thead><tr><th>Category</th><th class="n">Actual</th><th class="n">Budget</th><th style="width:30%"></th><th class="n">Remaining</th></tr></thead><tbody>
+    ${cats.map(c=>{const a=r.byCat[c.name]||0,b=+c.budget||0,over=b&&a>b+0.005;return `<tr><td class="o1 strong">${esc(c.name)}</td><td class="n o2 strong">${money(a)}</td><td class="n o4 left"><span class="mlabel">Budget </span>${b?money(b):'<span class="muted">none</span>'}</td>
+      <td class="o3 full">${b?`<div class="bar ${over?'over':''}"><i data-w="${Math.max(0,Math.min(100,a/b*100)).toFixed(1)}"></i></div>`:''}</td>
+      <td class="n o5 ${over?'overtxt':''}">${b?(over?money(a-b)+' over':money(b-a)):''}</td></tr>`}).join('')}
+  </tbody></table></div></section>
+  <section class="grid g2">${sv('p1',+S.settings.sav1)}${sv('p2',+S.settings.sav2)}</section>
+  <section><div class="row spread"><h2>What Claude noticed</h2>${cur.insBusy?'':'<button class="link" data-act="insights">Refresh</button>'}</div>
+    <div class="card">${cur.insBusy?'<div class="skel" style="width:92%"></div><div class="skel" style="width:78%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:60%"></div>'
+      :cur.insights?`<ul class="insights">${cur.insights.split('\n').filter(l=>l.trim()).map(l=>`<li>${esc(l.replace(/^[-•*\d.\s]+/,''))}</li>`).join('')}</ul>`
+      :`<span class="muted">${ready()?'No analysis yet. Choose Refresh to write one.':'Add your Worker address and passcode in Settings to get a written analysis of the month.'}</span>`}</div></section>
+  <section class="row actions"><button class="btn primary" data-act="sheet">Export to Google Sheets</button><button class="btn" data-act="csv">Download CSV</button><button class="btn" data-act="savemonth">Save to history</button></section>`},
+history(){const ms=Object.keys(S.history).sort().reverse();
+  const top=`<h1>${ms.length?`${ms.length} saved month${ms.length>1?'s':''} on this computer`:'No months saved yet'}</h1><p class="lead">History is kept in this browser only. Download a backup now and then; it holds your months, categories and rules, and never your passcode.</p>`;
+  const rows=ms.map(m=>{const r=compute(S.history[m].tx);return{m,r}}),max=Math.max(1,...rows.map(x=>x.r.total));
+  return top+(ms.length?`<section><div class="card scroll" style="padding:var(--s2)"><table class="stack"><thead><tr><th>Month</th><th class="n">Spent</th><th style="width:30%"></th><th class="n">Shared</th><th>Settle-up</th><th></th></tr></thead><tbody>
+    ${rows.map(({m,r})=>`<tr><td class="strong">${esc(monthName(m))}</td><td class="n strong">${money(r.total)}</td><td class="full"><div class="bar ${r.total>r.budget?'over':''}"><i data-w="${(r.total/max*100).toFixed(1)}"></i></div></td><td class="n hide">${money(r.shared)}</td><td class="full">${esc(settleText(r))}</td>
+      <td class="n full left"><button class="link" data-act="open" data-m="${m}">Open</button> &nbsp; <button class="link" data-act="delmonth" data-m="${m}">Delete</button></td></tr>`).join('')}</tbody></table></div></section>`:'')
+  +`<section class="row actions"><button class="btn" data-act="backup">Download backup</button><label class="btn">Restore from backup<input type="file" accept=".json" data-ch="restore" hidden></label></section>`},
+settings(){const s=S.settings;return `<h1>Set up names, budgets and connections</h1><p class="lead">Everything here is stored in this browser on this device.</p>
+  <section><h2>The two of you</h2><div class="card grid g3">
+    <label class="f">First partner<input value="${esc(s.p1)}" data-set="p1"></label>
+    <label class="f">Second partner<input value="${esc(s.p2)}" data-set="p2"></label>
+    <label class="f">First partner's share of shared costs, %<input type="number" min="0" max="100" value="${esc(s.split)}" data-set="split" data-num></label>
+    <label class="f">First partner's monthly joint savings<input type="number" step="0.01" value="${esc(s.sav1)}" data-set="sav1" data-num></label>
+    <label class="f">Second partner's monthly joint savings<input type="number" step="0.01" value="${esc(s.sav2)}" data-set="sav2" data-num></label></div></section>
+  <section><h2>Claude</h2><div class="card grid g3">
+    <label class="f">Worker address<input value="${esc(s.workerUrl)}" data-set="workerUrl" placeholder="https://….workers.dev" autocomplete="off"><span>Your Cloudflare Worker. It holds the Claude API key, so the key never reaches this page.</span></label>
+    <label class="f">Passcode<input type="password" value="${esc(s.passcode)}" data-set="passcode" autocomplete="off"><span>The APP_PASSCODE you set on the Worker. Saved only in this browser.</span></label>
+    <label class="f">Model<input value="${esc(s.model)}" data-set="model" list="models"><datalist id="models"><option>claude-sonnet-5-5</option><option>claude-haiku-5-5</option><option>claude-opus-5-5</option></datalist><span>Sonnet is a good balance of accuracy and cost for statements.</span></label></div></section>
+  <section><h2>Google Sheets</h2><div class="card">
+    <ol class="steps"><li>Open the Google Sheet you want to use, then Extensions, then Apps Script.</li><li>Replace everything there with the code below and save.</li>
+      <li>Choose Deploy, New deployment, type Web app. Set "Execute as" to Me and "Who has access" to Anyone.</li><li>Approve the permissions, copy the Web app URL and paste it here.</li></ol>
+    <label class="f" style="margin-bottom:var(--s4)">Web app URL<input value="${esc(s.sheetUrl)}" data-set="sheetUrl" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%"></label>
+    <div class="row spread" style="margin-bottom:var(--s2)"><span class="muted">The code includes a private token so only this app can write to your sheet.</span><button class="btn" data-act="copyscript">Copy code</button></div>
+    <textarea class="code" id="script" readonly>${esc(scriptCode())}</textarea></div></section>
+  <section><h2>Categories and monthly budgets</h2><div class="card scroll" style="padding:var(--s2)"><table class="stack"><thead><tr><th>Category</th><th class="n">Monthly budget</th><th>Usually</th><th></th></tr></thead><tbody>
+    ${S.categories.map((c,i)=>c.kind!=='expense'?'':`<tr><td class="full"><input value="${esc(c.name)}" data-ch="cat" data-i="${i}" data-f="name" aria-label="Category name"></td><td class="n"><input type="number" step="0.01" min="0" value="${esc(c.budget||'')}" placeholder="none" data-ch="cat" data-i="${i}" data-f="budget" class="num" style="width:120px" aria-label="Budget"></td>
+      <td><select data-ch="cat" data-i="${i}" data-f="scope" aria-label="Shared or personal"><option value="shared" ${c.scope==='shared'?'selected':''}>Shared</option><option value="personal" ${c.scope==='personal'?'selected':''}>Personal</option></select></td>
+      <td class="n full left"><button class="link" data-act="delcat" data-i="${i}">Remove</button></td></tr>`).join('')}</tbody></table></div>
+    <p style="margin-top:var(--s3)"><button class="btn" data-act="addcat">Add a category</button></p></section>
+  <section><h2>Remembered corrections</h2><div class="card" ${S.rules.length?'style="padding:var(--s2)"':''}>${S.rules.length?`<table class="stack"><thead><tr><th>When the description contains</th><th>Category</th><th>Belongs to</th><th></th></tr></thead><tbody>
+    ${S.rules.map((r,i)=>`<tr><td class="strong">${esc(r.match)}</td><td>${esc(r.category)}</td><td>${r.owner==='shared'?'Shared':'Account holder'}</td><td class="n"><button class="link" data-act="delrule" data-i="${i}">Forget</button></td></tr>`).join('')}</tbody></table>`
+    :'<span class="muted">None yet. Corrections you make while reviewing appear here.</span>'}</div></section>`}
+};
+const empty=(h,p)=>`<h1>${h}</h1><p class="lead">${p}</p><div class="row actions"><button class="btn primary" data-act="tab" data-tab="statements">Add statements</button><button class="link" data-act="sample">Load sample data</button></div>`;
+function renderRows(){const el=$('#rows');if(!el)return;const q=rv.q.toLowerCase();
+  const opts=S.categories.map(c=>c.name);
+  el.innerHTML=cur.tx.filter(t=>(rv.who==='all'||t.paidBy===rv.who)&&(!q||t.desc.toLowerCase().includes(q))).map(t=>`<tr class="${t.exclude?'off':''}"><td class="num o3 left" style="text-align:left">${esc(t.date)}</td><td class="desc o1 strong">${esc(t.desc)}</td><td class="n o2 strong">${money(t.amount)}</td>
+    <td class="o5"><select data-ch="txcat" data-id="${t.id}" aria-label="Category">${opts.map(o=>`<option ${o===t.category?'selected':''}>${esc(o)}</option>`).join('')}</select></td>
+    <td class="o6"><select data-ch="txowner" data-id="${t.id}" aria-label="Belongs to">${['shared','p1','p2'].map(o=>`<option value="${o}" ${o===t.owner?'selected':''}>${esc(who(o))}</option>`).join('')}</select></td>
+    <td class="muted o4 n">${esc(who(t.paidBy))}</td><td class="o7 full inc"><label><input type="checkbox" data-ch="txinc" data-id="${t.id}" ${t.exclude?'':'checked'} aria-label="Count this transaction"><span class="mlabel">Count it in the budget</span></label></td></tr>`).join('')||'<tr><td colspan="7" class="muted full">No transactions match.</td></tr>'}
+function scriptCode(){return `const TOKEN = '${S.settings.token}';
+
+function doPost(e) {
+  const out = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const data = JSON.parse(e.postData.contents);
+    if (data.token !== TOKEN) return out({ ok: false, error: 'Token does not match' });
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let name = data.tabName, n = 1;
+    while (ss.getSheetByName(name)) { n++; name = data.tabName + ' (' + n + ')'; }
+    const sheet = ss.insertSheet(name, ss.getNumSheets());
+    const width = Math.max.apply(null, data.rows.map(r => r.length));
+    const rows = data.rows.map(r => r.concat(Array(width - r.length).fill('')));
+    sheet.getRange(1, 1, rows.length, width).setValues(rows);
+    (data.boldRows || []).forEach(i => sheet.getRange(i + 1, 1, 1, width).setFontWeight('bold'));
+    sheet.autoResizeColumns(1, width);
+    return out({ ok: true, tab: name });
+  } catch (err) {
+    return out({ ok: false, error: String(err) });
+  }
+}`}
+function sample(){const m=cur.month,d=n=>m+'-'+String(n).padStart(2,'0');
+  const rows=[['p1',1,'RENT PAYMENT - LANDLORD',3400,'Rent payment','s'],['p1',2,'TORONTO HYDRO',96.4,'Utilities','s'],['p1',3,'LOBLAWS #1021',212.33,'Groceries','s'],['p1',5,'PETRO-CANADA 4471',68.2,'Fuel','s'],['p1',6,'NETFLIX.COM',20.99,'Subscriptions','s'],['p1',8,'UBER EATS',54.1,'Food delivery','s'],['p1',9,'CONDO CORP 2214 FEES',600,'Condo fees','s'],['p1',11,'APPLE STORE EATON',189,'Shopping','p'],['p1',12,'TD AUTO FINANCE',365,'Car payment','s'],['p1',14,'COSTCO WHOLESALE',318.75,'Groceries','s'],['p1',15,'TFR TO JOINT SAVINGS',637.35,'Joint savings','s'],['p1',15,'PAYROLL DEPOSIT',-4200,'Income','p'],['p1',18,'PAYMENT THANK YOU',-900,'Transfer','p'],['p1',21,'UBER EATS',61.75,'Food delivery','s'],['p1',24,'CITY OF TORONTO TAX',350,'Property taxes','s'],
+    ['p2',2,'METRO 311',143.2,'Groceries','s'],['p2',4,'SPOTIFY',12.99,'Subscriptions','s'],['p2',5,'AVIVA INSURANCE',280,'Car insurance','s'],['p2',7,'SHOPPERS DRUG MART',47.6,'Household supplies','s'],['p2',9,'DOORDASH',38.4,'Food delivery','s'],['p2',10,'SEPHORA',84.5,'Personal care','p'],['p2',13,'FARM BOY',167.9,'Groceries','s'],['p2',15,'TFR TO JOINT SAVINGS',303.75,'Joint savings','s'],['p2',15,'PAYROLL DEPOSIT',-2600,'Income','p'],['p2',17,'CANADIAN TIRE',72.15,'Household supplies','s'],['p2',19,'CINEPLEX',31.5,'Entertainment','p'],['p2',22,'DOORDASH',44.9,'Food delivery','s'],['p2',23,'ENBRIDGE GAS',71.3,'Utilities','s'],['p2',26,'TERRONI',96,'Dining out','p'],['p2',27,'MORTGAGE PAYMENT',200,'Mortgage payment','s']];
+  cur.tx=rows.map(([k,day,desc,amount,category,o])=>({id:uid(),date:d(day),desc,amount,category,paidBy:k,owner:o==='s'?'shared':k,source:'Sample data',exclude:false})).sort((a,b)=>a.date.localeCompare(b.date));
+  cur.insights='';cur.jobs=[];saveCur();tab='summary';render();toast('Sample month loaded. Nothing was sent anywhere.')}
+
+/* ---------- events ---------- */
+const A={
+  tab:b=>{tab=b.dataset.tab;setMenu(false);render();scrollTo(0,0)},
+  analyze,sample,
+  rmfile:b=>{cur.files[b.dataset.k].splice(+b.dataset.i,1);render()},
+  insights:()=>ready()?makeInsights():toast('Add your Worker address and passcode in Settings first'),
+  sheet:b=>exportSheet(b),csv:exportCsv,
+  savemonth:()=>{saveMonth();toast(monthName(cur.month)+' saved to history')},
+  open:b=>{const h=S.history[b.dataset.m];cur.month=b.dataset.m;cur.tx=JSON.parse(JSON.stringify(h.tx));cur.insights=h.insights||'';saveCur();tab='summary';render()},
+  delmonth:b=>{delete S.history[b.dataset.m];save();render();toast('Month deleted')},
+  backup:()=>{const c=JSON.parse(JSON.stringify(S));c.settings.passcode='';download('couple-budget-backup.json',JSON.stringify(c,null,1),'application/json')},
+  copyscript:async()=>{const t=$('#script');try{await navigator.clipboard.writeText(t.value)}catch(e){t.select();document.execCommand('copy')}toast('Code copied')},
+  addcat:()=>{S.categories.splice(S.categories.findIndex(c=>c.kind!=='expense'),0,{name:'New category',budget:0,scope:'personal',kind:'expense'});save();render()},
+  delcat:b=>{const c=S.categories[+b.dataset.i];cur.tx.forEach(t=>{if(t.category===c.name)t.category='Other'});S.rules=S.rules.filter(r=>r.category!==c.name);S.categories.splice(+b.dataset.i,1);save();saveCur();render()},
+  delrule:b=>{S.rules.splice(+b.dataset.i,1);save();render()}
+};
+function remember(t){if(!S.settings.remember)return;const k=mkey(t.desc);if(k.length<3)return;
+  const rule={match:k,category:t.category,owner:t.owner==='shared'?'shared':'personal'},i=S.rules.findIndex(r=>r.match===k);i>=0?S.rules[i]=rule:S.rules.push(rule);save();
+  let n=0;cur.tx.forEach(o=>{if(o!==t&&mkey(o.desc)===k){o.category=rule.category;o.owner=rule.owner==='shared'?'shared':personal(o);n++}});
+  toast(n?`Remembered for ${k}, and applied to ${n} more`:`Remembered for ${k}`)}
+const C={
+  files:t=>{cur.files[t.dataset.k].push(...t.files);render()},
+  month:t=>{if(t.value){cur.month=t.value;saveCur()}},
+  rvwho:t=>{rv.who=t.value;renderRows()},
+  remember:t=>{S.settings.remember=t.checked;save()},
+  txcat:t=>{const x=cur.tx.find(o=>o.id===t.dataset.id);x.category=t.value;x.owner=cat(t.value).scope==='shared'?'shared':personal(x);remember(x);saveCur();renderRows()},
+  txowner:t=>{const x=cur.tx.find(o=>o.id===t.dataset.id);x.owner=t.value;remember(x);saveCur();renderRows()},
+  txinc:t=>{cur.tx.find(o=>o.id===t.dataset.id).exclude=!t.checked;saveCur();renderRows()},
+  cat:t=>{const c=S.categories[+t.dataset.i],f=t.dataset.f;
+    if(f==='name'){const v=t.value.trim();if(!v||S.categories.some(o=>o!==c&&o.name===v)){t.value=c.name;return toast('Category names must be unique')}
+      cur.tx.forEach(x=>{if(x.category===c.name)x.category=v});S.rules.forEach(r=>{if(r.category===c.name)r.category=v});Object.values(S.history).forEach(h=>h.tx.forEach(x=>{if(x.category===c.name)x.category=v}));c.name=v;saveCur()}
+    else if(f==='budget')c.budget=Math.max(0,+t.value||0);else c.scope=t.value;save();toast('Saved')},
+  restore:async t=>{try{const d=JSON.parse(await t.files[0].text());const keep={workerUrl:S.settings.workerUrl,passcode:S.settings.passcode};if(!d.settings||!d.categories)throw new Error('Not a backup file');S.settings=Object.assign(defaults().settings,d.settings,keep);S.categories=d.categories;S.rules=d.rules||[];S.history=d.history||{};save();render();toast('Backup restored')}catch(e){toast('Could not restore: '+e.message)}}
+};
+function setMenu(open){document.body.classList.toggle('menu-open',open);$('#menu').setAttribute('aria-expanded',open)}
+$('#menu').addEventListener('click',()=>setMenu(!document.body.classList.contains('menu-open')));
+$('#scrim').addEventListener('click',()=>setMenu(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setMenu(false)});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled)A[b.dataset.act]?.(b)});
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.ch)C[t.dataset.ch]?.(t);
+  else if(t.dataset.set){S.settings[t.dataset.set]='num' in t.dataset?(+t.value||0):t.value.trim();if(t.dataset.set==='split')S.settings.split=Math.max(0,Math.min(100,S.settings.split));save();toast('Saved')}});
+document.addEventListener('input',e=>{if(e.target.dataset.in==='q'){rv.q=e.target.value;renderRows()}});
+document.addEventListener('dragover',e=>{const z=e.target.closest?.('[data-zone]');if(z){e.preventDefault();z.classList.add('over')}});
+document.addEventListener('dragleave',e=>e.target.closest?.('[data-zone]')?.classList.remove('over'));
+document.addEventListener('drop',e=>{const z=e.target.closest?.('[data-zone]');e.preventDefault();if(z){cur.files[z.dataset.zone].push(...e.dataTransfer.files);render()}});
+render();
+</script>
+</body>
+</html>
