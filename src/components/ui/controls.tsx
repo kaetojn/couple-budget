@@ -90,7 +90,7 @@ export function MoneyInput({ value, onChange, label, step, className, autoFocus 
 }
 
 export function TextInput({ className, ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn('h-12 w-full rounded-xl border border-line bg-surface px-3 text-[16px] font-medium outline-none transition placeholder:font-normal placeholder:text-muted/70 focus:border-brand focus:ring-2 focus:ring-brand/20', className)} {...rest} />;
+  return <input className={cn('h-12 w-full rounded-xl border border-line bg-surface px-3 text-[16px] font-medium outline-none transition placeholder:font-normal placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/20', className)} {...rest} />;
 }
 
 /** Plus and minus buttons around a whole number, for things like the day a bill is due. */

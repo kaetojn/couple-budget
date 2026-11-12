@@ -4,8 +4,22 @@ import type { Category, Doc, Owner, Payer, PersonId, Tx } from './types';
 export const who = (doc: Doc, k: Owner | Payer | 'personal') =>
   k === 'p1' ? doc.settings.p1 || 'Partner 1' : k === 'p2' ? doc.settings.p2 || 'Partner 2' : k === 'joint' ? 'Joint account' : k === 'personal' ? 'Each their own' : 'Shared';
 
-export const catOf = (doc: Doc, name: string): Category =>
-  doc.categories.find(c => c.name === name) ?? doc.categories.find(c => c.name === 'Other') ?? doc.categories[0];
+// Every edit replaces doc.categories with a fresh copy, so the lookup table is
+// rebuilt once per edit instead of searching the list for every transaction.
+const catMaps = new WeakMap<Category[], Map<string, Category>>();
+function catMap(cats: Category[]) {
+  let map = catMaps.get(cats);
+  if (!map) {
+    map = new Map(cats.map(c => [c.name, c]));
+    catMaps.set(cats, map);
+  }
+  return map;
+}
+
+export const catOf = (doc: Doc, name: string): Category => {
+  const map = catMap(doc.categories);
+  return map.get(name) ?? map.get('Other') ?? doc.categories[0];
+};
 
 /** The owner a transaction gets from its category, given who paid. */
 export const ownerFor = (cat: Category, paidBy: Payer): Owner =>

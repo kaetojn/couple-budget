@@ -50,13 +50,13 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (v: 
 export function CategoryPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   const doc = useAtomValue(docAtom);
   return (
-    <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto rounded-2xl bg-canvas p-1.5 sm:grid-cols-3" role="radiogroup" aria-label="Category">
+    <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-canvas p-1.5 sm:grid-cols-3" role="radiogroup" aria-label="Category">
       {doc.categories.map(c => {
         const on = c.name === value;
         return (
-          <button key={c.name} type="button" role="radio" aria-checked={on} onClick={() => onChange(c.name)} className={cn('flex items-center gap-2 rounded-xl p-1.5 text-left text-[13px] font-semibold transition', on ? 'bg-surface shadow-sm ring-2 ring-brand' : 'hover:bg-surface')}>
+          <button key={c.name} type="button" role="radio" aria-checked={on} onClick={() => onChange(c.name)} className={cn('flex items-center gap-2 rounded-xl p-1.5 text-left text-[13px] font-semibold leading-tight transition-[background-color,box-shadow] duration-150 active:bg-surface', on ? 'bg-surface shadow-sm ring-2 ring-brand' : 'hover:bg-surface/70')}>
             <IconTile icon={c.icon} color={c.color} size="sm" />
-            <span className="min-w-0 truncate">{c.name}</span>
+            <span className="line-clamp-2 min-w-0">{c.name}</span>
           </button>
         );
       })}

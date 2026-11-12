@@ -95,7 +95,7 @@ export function Onboarding({ go }: { go: Go }) {
         <Head title="How should shared costs be split?" text="Rent, groceries and the rest of your shared budgets are divided this way." />
         <Segmented<SplitMethod> value={s.splitMethod} onChange={splitMethod => set({ splitMethod })} options={[{ value: 'income', label: 'By income' }, { value: 'even', label: '50/50' }, { value: 'custom', label: 'Custom' }]} />
         {s.splitMethod === 'custom' && <Slider label={`${n1}'s share`} value={Math.round(s.split)} max={100} onChange={split => set({ split })} />}
-        <SplitBar parts={[{ label: n1, value: s.split, color: '#4b3fe4' }, { label: n2, value: 100 - s.split, color: '#e8508b' }]} height={16} />
+        <SplitBar parts={[{ label: n1, value: s.split, color: '#4b3fe4' }, { label: n2, value: 100 - s.split, color: '#d23a76' }]} height={16} />
         <div className="flex justify-between font-semibold"><span className="flex items-center gap-2"><Avatar id="p1" />{n1} <span className="num">{pct(s.split)}</span></span><span className="flex items-center gap-2"><span className="num">{pct(100 - s.split)}</span> {n2}<Avatar id="p2" /></span></div>
         <p className="text-muted">Of {money(plan.sharedBudget)} in shared budgets, {n1} covers {money(plan.sharedBudget * plan.share)} and {n2} covers {money(plan.sharedBudget * (1 - plan.share))}.</p>
       </>

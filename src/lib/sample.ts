@@ -21,7 +21,7 @@ const FIXED = /RENT|CONDO|TAX|AUTO FINANCE|INSURANCE|MORTGAGE|SAVINGS|PAYROLL|NE
 /** A made-up household used for the "look around" mode. Nothing here is saved or sent anywhere. */
 export function sampleDoc(): Doc {
   const doc = defaultDoc();
-  doc.settings = applySplit({ ...doc.settings, p1: 'Bea', p2: 'Kai', inc1: 5200, inc2: 2600, splitMethod: 'income', onboarded: true });
+  doc.settings = applySplit({ ...doc.settings, p1: 'Kaeto', p2: 'Bri', inc1: 5200, inc2: 2600, splitMethod: 'income', onboarded: true });
   const now = monthKey();
   [0.94, 1.12, 1].forEach((scale, i) => {
     const month = addMonths(now, i - 3);

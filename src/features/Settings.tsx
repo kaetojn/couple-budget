@@ -67,7 +67,7 @@ export function Settings(_: { go: Go }) {
             <Field label="Split of shared costs">
               <Segmented<SplitMethod> value={s.splitMethod} onChange={splitMethod => set({ splitMethod })} options={[{ value: 'income', label: 'By income' }, { value: 'even', label: '50/50' }, { value: 'custom', label: 'Custom' }]} />
               {s.splitMethod === 'custom' && <Slider label={`${who(doc, 'p1')}'s share`} value={Math.round(s.split)} max={100} onChange={split => set({ split })} />}
-              <SplitBar parts={[{ label: who(doc, 'p1'), value: s.split, color: '#4b3fe4' }, { label: who(doc, 'p2'), value: 100 - s.split, color: '#e8508b' }]} className="mt-1" />
+              <SplitBar parts={[{ label: who(doc, 'p1'), value: s.split, color: '#4b3fe4' }, { label: who(doc, 'p2'), value: 100 - s.split, color: '#d23a76' }]} className="mt-1" />
               <div className="flex justify-between text-sm font-semibold"><span className="flex items-center gap-1.5"><Avatar id="p1" size={20} />{who(doc, 'p1')} <span className="num">{pct(s.split)}</span></span><span className="flex items-center gap-1.5"><span className="num">{pct(100 - s.split)}</span> {who(doc, 'p2')}<Avatar id="p2" size={20} /></span></div>
             </Field>
           )}

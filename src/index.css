@@ -10,23 +10,29 @@
   --color-line: #e2e6ef;
   --color-brand: #4b3fe4;
   --color-brand-soft: #ecebfd;
-  --color-good: #0b8a5f;
+  --color-good: #0a8058;
   --color-bad: #d13438;
   --color-warn: #b45309;
   --color-p1: #4b3fe4;
-  --color-p2: #e8508b;
+  --color-p2: #d23a76;
   --color-shared: #0fa3a3;
-  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-slide-in: slide-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-slide-back: slide-back 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
+  --animate-rise: rise 0.32s var(--ease-out-expo) both;
+  --animate-fade: fade 0.16s ease-out both;
+  --animate-slide-in: slide-in 0.26s var(--ease-out-expo) both;
+  --animate-slide-back: slide-back 0.26s var(--ease-out-expo) both;
   --animate-shake: shake 0.35s;
   --animate-pop: pop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) both;
   --animate-draw: draw 0.9s ease-out both;
   --animate-shimmer: shimmer 1.2s linear infinite;
+  --animate-flash: flash 0.9s ease-out;
 
-  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-  @keyframes slide-in { from { opacity: 0; transform: translateX(28px); } }
-  @keyframes slide-back { from { opacity: 0; transform: translateX(-28px); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes slide-in { from { opacity: 0; transform: translateX(16px); } }
+  @keyframes slide-back { from { opacity: 0; transform: translateX(-16px); } }
+  @keyframes flash { from { box-shadow: 0 0 0 3px var(--color-brand); } to { box-shadow: 0 0 0 3px transparent; } }
   @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
   @keyframes pop { from { opacity: 0; transform: scale(0.5); } }
   @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
@@ -37,6 +43,10 @@
   * { min-width: 0; }
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-canvas text-ink font-sans antialiased; -webkit-tap-highlight-color: transparent; }
+  ::selection { background: var(--color-brand-soft); color: var(--color-ink); }
+  input, textarea { caret-color: var(--color-brand); }
+  :root { accent-color: var(--color-brand); }
+  :focus-visible { outline-color: var(--color-brand); }
   button, [role="button"], select, summary { cursor: pointer; }
   input[type="number"] { -moz-appearance: textfield; }
   input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -44,7 +54,9 @@
 
 @utility num { font-variant-numeric: tabular-nums; }
 @utility display { font-family: var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-@utility stagger { & > * { animation: var(--animate-rise); } & > :nth-child(2) { animation-delay: 0.05s; } & > :nth-child(3) { animation-delay: 0.1s; } & > :nth-child(4) { animation-delay: 0.15s; } & > :nth-child(5) { animation-delay: 0.2s; } & > :nth-child(n + 6) { animation-delay: 0.25s; } }
+/* Sections rise in on the first visit to a screen. Coming back to a screen only fades, so tab switches feel instant. */
+@utility stagger { & > * { animation: var(--animate-rise); } & > :nth-child(2) { animation-delay: 0.03s; } & > :nth-child(3) { animation-delay: 0.06s; } & > :nth-child(4) { animation-delay: 0.09s; } & > :nth-child(n + 5) { animation-delay: 0.12s; } }
+main[data-revisit] .stagger > * { animation: var(--animate-fade); animation-delay: 0s; }
 @utility skeleton { border-radius: 8px; background: linear-gradient(90deg, #e8ebf2 25%, #f4f6fa 50%, #e8ebf2 75%); background-size: 200% 100%; animation: var(--animate-shimmer); }
 
 input[type="range"].slider { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--fill, var(--color-brand)) var(--pos, 0%), #e2e6ef var(--pos, 0%)); outline-offset: 6px; }

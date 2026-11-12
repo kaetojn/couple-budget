@@ -11,6 +11,7 @@ import { MoneyInput, Segmented, Select, Slider, Stepper, TextInput } from '@/com
 import { Avatar, Progress, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { useLast } from '@/lib/hooks';
 import { who } from '@/lib/compute';
 import { FREQS } from '@/lib/defaults';
 import { addMonths, daysIn, money, money0, monthKey, monthLabel, ordinal, uid } from '@/lib/format';
@@ -26,6 +27,7 @@ export function Plan(_: { go: Go }) {
   const doc = useAtomValue(docAtom);
   const month = useAtomValue(monthAtom);
   const [editing, setEditing] = useState<Bill | null>(null);
+  const shown = useLast(editing);
   const items = agenda(doc, month);
   const bills = items.filter(i => i.type === 'bill');
   const paid = bills.filter(i => i.bill!.paid[month]);
@@ -113,8 +115,8 @@ export function Plan(_: { go: Go }) {
         </Card>
       </section>
 
-      <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? `Edit ${editing.kind}` : `New ${editing?.kind ?? 'bill'}`}>
-        {editing && <BillEditor key={editing.id || `new-${editing.kind}`} initial={editing} month={month} onDone={() => setEditing(null)} />}
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title={shown?.id ? `Edit ${shown.kind}` : `New ${shown?.kind ?? 'bill'}`}>
+        {shown && <BillEditor key={shown.id || `new-${shown.kind}`} initial={shown} month={month} onDone={() => setEditing(null)} />}
       </Sheet>
     </div>
   );
@@ -131,7 +133,7 @@ function PayCard({ person }: { person: PersonId }) {
     { label: 'Bills', value: a.bills, color: BILL_COLOR },
     { label: 'Debt', value: a.debt, color: DEBT_COLOR },
     { label: 'Shared spending', value: a.flexible, color: '#0fa3a3' },
-    { label: 'Joint savings', value: a.savings, color: '#0b8a5f' },
+    { label: 'Joint savings', value: a.savings, color: '#0a8058' },
     { label: a.left >= 0 ? 'Left for you' : 'Short by', value: Math.abs(a.left), color: a.left >= 0 ? '#cbd2e0' : '#f59e0b' },
   ];
   const setPay = (patch: Partial<typeof pay>) => updateDoc(d => { d.settings.pay[person] = { ...d.settings.pay[person], ...patch }; });
@@ -152,7 +154,7 @@ function PayCard({ person }: { person: PersonId }) {
         <p className="text-muted">Add a monthly take-home in Settings to see this paycheque divided up.</p>
       )}
       <Field label={`Joint savings, ${money0(a.savings)} a month`}>
-        <Slider label="Monthly joint savings" value={Math.round(a.savings)} max={Math.max(1000, Math.round((a.income * 0.4) / 100) * 100)} step={25} color="#0b8a5f" onChange={v => updateDoc(d => { d.settings[key] = v; })} />
+        <Slider label="Monthly joint savings" value={Math.round(a.savings)} max={Math.max(1000, Math.round((a.income * 0.4) / 100) * 100)} step={25} color="#0a8058" onChange={v => updateDoc(d => { d.settings[key] = v; })} />
       </Field>
       <div className="grid gap-2 sm:grid-cols-2">
         <Field label="Paid"><Select<PayFreq> value={pay.freq} onChange={freq => setPay({ freq })} options={(Object.keys(FREQS) as PayFreq[]).map(value => ({ value, label: FREQS[value] }))} /></Field>

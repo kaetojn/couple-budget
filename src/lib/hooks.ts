@@ -56,3 +56,13 @@ export function useHashRoute(fallback: string) {
   }, []);
   return [route, (r: string) => { location.hash = `/${r}`; }] as const;
 }
+
+/**
+ * The last non-null value seen. A sheet can keep showing what it was editing
+ * while it slides away, instead of collapsing to an empty panel.
+ */
+export function useLast<T>(value: T | null): T | null {
+  const last = useRef(value);
+  if (value !== null) last.current = value;
+  return last.current;
+}

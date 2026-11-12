@@ -11,6 +11,7 @@ import { MoneyInput, Segmented, Slider, TextInput } from '@/components/ui/contro
 import { Avatar, Progress } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { useLast } from '@/lib/hooks';
 import { computeMonth, ownerFor, who } from '@/lib/compute';
 import { COLORS } from '@/lib/defaults';
 import { money, money0, pct } from '@/lib/format';
@@ -24,6 +25,7 @@ export function Budgets(_: { go: Go }) {
   const doc = useAtomValue(docAtom);
   const month = useAtomValue(monthAtom);
   const [editing, setEditing] = useState<{ original: string | null; draft: Category } | null>(null);
+  const shown = useLast(editing);
   const r = computeMonth(doc, doc.months[month]?.tx ?? []);
   const plan = planOf(doc, month);
   const expense = doc.categories.filter(c => c.kind === 'expense');
@@ -80,8 +82,8 @@ export function Budgets(_: { go: Go }) {
 
       <Button variant="soft" size="lg" onClick={add}><LuPlus />Add a category</Button>
 
-      <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing?.original ? 'Edit category' : 'New category'}>
-        {editing && <CategoryEditor key={editing.original ?? 'new'} original={editing.original} initial={editing.draft} onDone={() => setEditing(null)} />}
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title={shown?.original ? 'Edit category' : 'New category'}>
+        {shown && <CategoryEditor key={shown.original ?? 'new'} original={shown.original} initial={shown.draft} onDone={() => setEditing(null)} />}
       </Sheet>
     </div>
   );

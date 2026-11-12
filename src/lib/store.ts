@@ -30,13 +30,18 @@ const initial = readLocal();
 export const docAtom = atom<Doc>(initial);
 export const sessionAtom = atom<Session>({ passcode: readPass(), demo: false, loading: false, sync: 'idle' });
 export const monthAtom = atom<string>(latestMonth(initial));
-export const toastAtom = atom<{ id: number; text: string }[]>([]);
+export interface ToastAction { label: string; run: () => void }
+export const toastAtom = atom<{ id: number; text: string; action?: ToastAction }[]>([]);
 
 let toastId = 0;
-export function toast(text: string) {
+export function dismissToast(id: number) {
+  store.set(toastAtom, list => list.filter(t => t.id !== id));
+}
+export function toast(text: string, action?: ToastAction) {
   const id = ++toastId;
-  store.set(toastAtom, list => [...list, { id, text }]);
-  setTimeout(() => store.set(toastAtom, list => list.filter(t => t.id !== id)), 3400);
+  // One toast at a time keeps the message under the thumb readable.
+  store.set(toastAtom, [{ id, text, action }]);
+  setTimeout(() => dismissToast(id), action ? 6000 : 3400);
 }
 
 const patchSession = (patch: Partial<Session>) => store.set(sessionAtom, s => ({ ...s, ...patch }));

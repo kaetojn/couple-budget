@@ -10,6 +10,7 @@ import { MoneyInput, Segmented, Select, TextInput } from '@/components/ui/contro
 import { Avatar, Count, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { useLast } from '@/lib/hooks';
 import { ACCOUNT_TYPES } from '@/lib/defaults';
 import { money, money0, monthLabel, uid } from '@/lib/format';
 import { netWorth } from '@/lib/plan';
@@ -21,6 +22,7 @@ const TYPE_COLOR: Record<AccountType, string> = { chequing: '#3b82f6', savings: 
 export function NetWorth(_: { go: Go }) {
   const doc = useAtomValue(docAtom);
   const [editing, setEditing] = useState<Account | null>(null);
+  const shown = useLast(editing);
   const nw = netWorth(doc);
   const months = Object.keys(doc.snapshots).sort();
   const series = months.map(m => doc.snapshots[m].assets - doc.snapshots[m].debts);
@@ -53,12 +55,12 @@ export function NetWorth(_: { go: Go }) {
               )}
             </div>
             {series.length > 1 ? (
-              <TrendChart values={series} color="#0b8a5f" label={i => monthLabel(months[i], 'short')} format={money0} ticks={[0, series.length - 1]} />
+              <TrendChart values={series} color="#0a8058" label={i => monthLabel(months[i], 'short')} format={money0} ticks={[0, series.length - 1]} />
             ) : (
               <p className="rounded-2xl bg-canvas p-3 text-sm text-muted">The chart appears once there are two months of balances. Each change you make is recorded for the current month.</p>
             )}
             <div className="grid gap-2">
-              <SplitBar parts={[{ label: 'Assets', value: nw.assets, color: '#0b8a5f' }, { label: 'Debts', value: nw.debts, color: '#d13438' }]} />
+              <SplitBar parts={[{ label: 'Assets', value: nw.assets, color: '#0a8058' }, { label: 'Debts', value: nw.debts, color: '#d13438' }]} />
               <div className="flex justify-between text-sm"><span><span className="text-muted">Assets</span> <strong className="num">{money0(nw.assets)}</strong></span><span><span className="text-muted">Debts</span> <strong className="num">{money0(nw.debts)}</strong></span></div>
             </div>
           </Card>
@@ -82,8 +84,8 @@ export function NetWorth(_: { go: Go }) {
         </>
       )}
 
-      <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? 'Edit account' : 'New account'}>
-        {editing && <AccountEditor key={editing.id || 'new'} initial={editing} onDone={() => setEditing(null)} />}
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title={shown?.id ? 'Edit account' : 'New account'}>
+        {shown && <AccountEditor key={shown.id || 'new'} initial={shown} onDone={() => setEditing(null)} />}
       </Sheet>
     </div>
   );

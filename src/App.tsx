@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import type { IconType } from 'react-icons';
 import { LuCalendarDays, LuChartLine, LuChartPie, LuCloud, LuCloudOff, LuLayoutDashboard, LuRefreshCw, LuSettings, LuTarget } from 'react-icons/lu';
@@ -42,6 +43,14 @@ export default function App() {
   const session = useAtomValue(sessionAtom);
   const doc = useAtomValue(docAtom);
   const [route, go] = useHashRoute('home');
+  // Screens play their entrance once per session; a return visit only fades in.
+  const visits = useRef({ route: '', revisit: false, seen: new Set<string>() });
+  if (visits.current.route !== route) {
+    const { seen } = visits.current;
+    visits.current = { route, revisit: seen.has(route), seen };
+    seen.add(route);
+  }
+  const { revisit } = visits.current;
 
   if (!session.passcode && !session.demo) return <><Lock /><Toasts /></>;
   if (session.loading) {
@@ -91,7 +100,7 @@ export default function App() {
         </div>
       )}
 
-      <main key={route} className="mx-auto max-w-5xl px-4 pb-28 pt-5 md:px-8 md:pb-12 md:pt-8">
+      <main key={route} data-revisit={revisit || undefined} className="mx-auto max-w-5xl px-4 pb-28 pt-5 md:px-8 md:pb-12 md:pt-8">
         <Page go={go} />
       </main>
 
