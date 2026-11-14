@@ -236,6 +236,10 @@ async function route(request, env, path) {
   if (path === '/save') {
     const body = await readJson(request);
     if (!body || typeof body.data !== 'object' || body.data === null) throw new HttpError(400, 'Nothing to save');
+    // An older copy of the app may not know about newer sections (investments, for example).
+    // Keep any section the saved copy has but this save leaves out, so an old phone cannot erase it.
+    const prev = await env.DB.get(dataKey(who.hh), 'json');
+    if (prev && typeof prev === 'object') for (const k of Object.keys(prev)) if (!(k in body.data)) body.data[k] = prev[k];
     await env.DB.put(dataKey(who.hh), JSON.stringify(body.data));
     return ok({});
   }

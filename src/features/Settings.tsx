@@ -1,6 +1,6 @@
 import { useAtomValue } from 'jotai';
 import { useRef, useState } from 'react';
-import { LuDownload, LuLock, LuRefreshCw, LuTrash2, LuUpload } from 'react-icons/lu';
+import { LuDownload, LuLock, LuRefreshCw, LuRotateCw, LuTrash2, LuUpload } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { docAtom, eraseDevice, lock, sessionAtom, toast, updateDoc } from '@/lib
 import { REGIONS, type Region } from '@/lib/tax';
 import type { Arrangement, Settings as SettingsType, SplitMethod } from '@/lib/types';
 import { IncomeField, OtherIncomeEditor } from './PayFields';
+import { newerAvailable, reloadApp, versionLabel } from '@/lib/update';
 import { AccountSection, ClaudeSection } from './AccountSection';
 
 export function Settings(_: { go: Go }) {
@@ -23,6 +24,14 @@ export function Settings(_: { go: Go }) {
   const s = doc.settings;
   const [sure, setSure] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [checking, setChecking] = useState(false);
+  async function reload() {
+    setChecking(true);
+    let newer = false;
+    try { newer = await newerAvailable(); } catch { /* offline */ }
+    toast(newer ? 'Loading the newest version' : 'Reloading');
+    reloadApp();
+  }
   const statementMonths = Object.values(doc.months).filter(m => m?.tx?.length).length;
   const statementCount = Object.values(doc.months).reduce((n, m) => n + (m?.tx?.length ?? 0), 0);
   function clearStatements() {
@@ -131,8 +140,10 @@ export function Settings(_: { go: Go }) {
         <SectionTitle>This device</SectionTitle>
         <Card className="flex flex-wrap gap-2">
           <Button onClick={() => updateDoc(d => { d.settings.onboarded = false; })} disabled={demo}><LuRefreshCw />Run the setup guide again</Button>
+          <Button onClick={() => void reload()} busy={checking}><LuRotateCw />Reload app</Button>
           <Button onClick={lock}><LuLock />Lock</Button>
           <Button variant="danger" onClick={() => (sure ? eraseDevice() : setSure(true))}><LuTrash2 />{sure ? 'Tap again to erase this device' : 'Lock and erase this device'}</Button>
+          <p className="w-full text-[13px] text-muted">Version {versionLabel()}. The app updates itself when you come back to it; Reload app loads the newest version now, keeping any changes not yet saved.</p>
         </Card>
       </section>
     </div>
