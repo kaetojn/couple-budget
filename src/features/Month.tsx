@@ -13,6 +13,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { extractStatement, isImage, type StatementAccount } from '@/lib/ai';
 import { upsertAccount } from '@/lib/accounts';
 import { coverage, detectRecurring, fileByDate } from '@/lib/detect';
+import { coveredByBill } from '@/lib/plan';
 import { reconcileTransfers, rememberPayee, transferSummary } from '@/lib/transfers';
 import { accountLabel } from '@/lib/accounts';
 import { PayPrompts } from './Findings';
@@ -216,17 +217,29 @@ function Summary({ month, totals, day, owner, search, narrowed, onClear }: { mon
   );
 }
 
-// Five quiet steps of ink, all light enough for ink text, so the calendar shows rhythm without outshouting the total.
-const HEAT = [0.05, 0.1, 0.16, 0.24, 0.34];
+/** Day colours, from no spending to a big day. Each pairs a soft fill with dark text for contrast. */
+const DAY_TONES = [
+  { key: 'none', fill: 'rgb(15 23 42 / 0.03)', label: 'Nothing' },
+  { key: 'light', fill: '#dff3e8', label: 'Light' },
+  { key: 'normal', fill: '#b5e3c9', label: 'About normal' },
+  { key: 'over', fill: '#fbdfae', label: 'Over' },
+  { key: 'big', fill: '#f7b9bd', label: 'Big day' },
+] as const;
 
-/** Spending by day. Scaled on a square root and capped at the 90th percentile so one rent day cannot wash out the month. */
+/** Everyday spending by day, coloured against the everyday budget per day, with a dot on days a bill was paid. */
 function Calendar({ doc, tx, month, day, onDay }: { doc: Doc; tx: Tx[]; month: string; day: number | null; onDay: (d: number | null) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const days = useMemo(() => spendByDay(doc, tx, month), [doc, tx, month]);
-  const cap = useMemo(() => {
-    const spent = days.filter(v => v > 0).sort((a, b) => a - b);
-    return Math.sqrt(spent[Math.floor((spent.length - 1) * 0.9)] ?? 1);
-  }, [days]);
+  // Fixed bills (rent, insurance) would turn their day red every month, so the colours follow everyday spending.
+  const everydayTx = useMemo(() => tx.filter(t => !coveredByBill(doc, catOf(doc, t.category).name)), [doc, tx]);
+  const days = useMemo(() => spendByDay(doc, everydayTx, month), [doc, everydayTx, month]);
+  const billDays = useMemo(() => new Set(tx.filter(t => t.amount > 0 && !t.exclude && coveredByBill(doc, catOf(doc, t.category).name) && t.date.startsWith(month)).map(t => dayOf(t.date))), [doc, tx, month]);
+  const perDay = useMemo(() => {
+    const budget = doc.categories.filter(c => c.kind === 'expense' && !coveredByBill(doc, c.name)).reduce((s, c) => s + (+c.budget || 0), 0);
+    if (budget > 0) return budget / days.length;
+    const spent = days.filter(v => v > 0).sort((x, y) => x - y);
+    return spent[Math.floor(spent.length / 2)] ?? 50;
+  }, [doc, days]);
+  const tone = (v: number) => (v <= 0 ? 0 : v <= perDay * 0.5 ? 1 : v <= perDay * 1.25 ? 2 : v <= perDay * 2.5 ? 3 : 4);
   const offset = parseMonth(month).getDay();
   const today = monthKey() === month ? new Date().getDate() : null;
   const weekOf = (d: number) => Math.floor((offset + d - 1) / 7);
@@ -235,34 +248,42 @@ function Calendar({ doc, tx, month, day, onDay }: { doc: Doc; tx: Tx[]; month: s
   const hide = (d: number) => !expanded && weekOf(d) !== focusWeek && 'max-md:hidden';
 
   return (
-    <Card className="grid gap-2 p-3 md:p-4">
+    <Card className="grid gap-3 p-3 md:p-4">
       <div className="grid grid-cols-7 gap-1 md:gap-1.5">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <span key={i} className="pb-1 text-center text-[11px] font-semibold text-muted" aria-hidden>{d}</span>)}
         {Array.from({ length: offset }, (_, i) => <span key={`b${i}`} className={cn(!expanded && focusWeek !== 0 && 'max-md:hidden')} />)}
         {days.map((v, i) => {
           const d = i + 1;
-          const level = v > 0 ? Math.min(HEAT.length - 1, Math.floor((Math.sqrt(v) / cap) * (HEAT.length - 1) + 0.0001)) : -1;
+          const t = DAY_TONES[tone(v)];
           const on = day === d;
+          const bill = billDays.has(d);
           return (
             <button
               key={i}
               onClick={() => onDay(on ? null : d)}
               aria-pressed={on}
               aria-current={today === d ? 'date' : undefined}
-              aria-label={`${monthLabel(month, 'short')} ${d}${today === d ? ', today' : ''}: ${money(v)} spent`}
+              aria-label={`${monthLabel(month, 'short')} ${d}${today === d ? ', today' : ''}: ${money(v)} everyday spending, ${t.label.toLowerCase()}${bill ? ', a bill was paid' : ''}`}
               className={cn(
-                'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-[13px] font-semibold transition-[transform,box-shadow] duration-150 active:scale-95 md:aspect-auto md:h-14',
+                'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-[13px] font-semibold text-ink transition-[transform,box-shadow] duration-150 active:scale-95 md:aspect-auto md:h-14',
                 on && 'ring-2 ring-ink ring-offset-2',
-                'text-ink',
                 hide(d),
               )}
-              style={{ backgroundColor: level >= 0 ? `rgb(15 23 42 / ${HEAT[level]})` : 'rgb(15 23 42 / 0.03)' }}
+              style={{ backgroundColor: t.fill }}
             >
               <span className={cn(today === d && 'underline decoration-2 underline-offset-[3px]')}>{d}</span>
               {v > 0 && <span className="num text-[11px] font-medium leading-none">{shortMoney(v)}</span>}
+              {bill && <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand" aria-hidden />}
             </button>
           );
         })}
+      </div>
+      <div className="grid gap-1.5 border-t border-line pt-2.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted">
+          {DAY_TONES.slice(1).map(t => <span key={t.key} className="flex items-center gap-1.5"><span className="size-3 rounded" style={{ backgroundColor: t.fill }} />{t.label}</span>)}
+          {billDays.size > 0 && <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-brand" />Bill paid</span>}
+        </div>
+        <p className="text-[12px] text-muted">Compared with your everyday budget of about <strong className="num text-ink">{money0(perDay)}</strong> a day. Bills like rent are left out of the colours.</p>
       </div>
       <button onClick={() => setExpanded(x => !x)} aria-expanded={expanded} className="flex h-9 items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold text-muted transition-colors active:bg-canvas md:hidden">
         {expanded ? 'Show one week' : 'Show the whole month'}
