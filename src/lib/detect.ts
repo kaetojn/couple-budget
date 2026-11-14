@@ -1,6 +1,6 @@
 /** Finds paycheques, recurring payments and paid bills in imported statements. */
 import { catOf, merchantKey } from './compute';
-import { PER_YEAR } from './defaults';
+import { PER_YEAR, RENTAL } from './defaults';
 import { daysIn, dayOf, monthsBetween } from './format';
 import { monthlyFrom } from './plan';
 import type { Bill, Doc, Owner, PayFreq, PersonId, Tx } from './types';
@@ -60,7 +60,7 @@ export function detectPay(doc: Doc): PayFound[] {
   for (const person of ['p1', 'p2'] as PersonId[]) {
     const groups = new Map<string, typeof txs>();
     for (const t of txs) {
-      if (t.paidBy !== person || t.exclude || t.amount > -100 || catOf(doc, t.category).kind !== 'income') continue;
+      if (t.paidBy !== person || t.exclude || t.amount > -100 || catOf(doc, t.category).kind !== 'income' || t.category === RENTAL) continue;
       const key = merchantKey(t.desc);
       if (!key || ignored.has(key)) continue;
       groups.set(key, [...(groups.get(key) ?? []), t]);

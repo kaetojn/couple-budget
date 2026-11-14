@@ -160,13 +160,13 @@ function PayCard({ person }: { person: PersonId }) {
     <Card className="grid content-start gap-4">
       <div className="flex items-center gap-3">
         <Avatar id={person} size={40} />
-        <div className="min-w-0 flex-1"><p className="truncate font-bold">{who(doc, person)}</p><p className="num text-[13px] text-muted">{money0(a.income)} a month in {a.cheques} paycheque{a.cheques > 1 ? 's' : ''}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate font-bold">{who(doc, person)}</p><p className="num text-[13px] text-muted">{money0(a.pay)} a month in {a.cheques} paycheque{a.cheques > 1 ? 's' : ''}{a.other > 0 ? ` + ${money0(a.other)} other income` : ''}</p></div>
       </div>
       {a.income > 0 ? (
         <>
           <SplitBar parts={a.left >= 0 ? parts : parts.slice(0, 4)} height={16} />
           <Legend parts={parts.filter(p => p.value > 0.5)} format={money0} />
-          <p className="rounded-2xl bg-canvas p-3 text-sm">From each <strong className="num">{money0(a.income / a.cheques)}</strong> paycheque, set aside <strong className="num">{money0(spoken / a.cheques)}</strong>{a.left >= 0 ? <> and keep <strong className="num">{money0(a.left / a.cheques)}</strong>.</> : <>. That is <strong className="num text-bad">{money0(-a.left / a.cheques)}</strong> more than it holds.</>}</p>
+          <p className="rounded-2xl bg-canvas p-3 text-sm">{a.other > 0 && <>Other income covers <strong className="num">{money0(Math.min(a.other, spoken))}</strong> first. </>}From each <strong className="num">{money0(a.pay / a.cheques)}</strong> paycheque, set aside <strong className="num">{money0(Math.max(0, spoken - a.other) / a.cheques)}</strong>{a.left >= 0 ? <> and keep <strong className="num">{money0(a.left / a.cheques)}</strong>.</> : <>. That is <strong className="num text-bad">{money0(-a.left / a.cheques)}</strong> more than it holds.</>}</p>
         </>
       ) : (
         <p className="text-muted">Add a monthly take-home in Settings to see this paycheque divided up.</p>

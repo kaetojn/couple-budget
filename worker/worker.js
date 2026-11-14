@@ -553,7 +553,7 @@ Amounts are in dollars. Positive amounts are money going out (spending); negativ
 When the user shares bank statements or banking-app screenshots, read every transaction, call list_categories, and
 call add_transactions with the month, whose account it is (p1, p2 or joint) and each transaction's category.
 Ask whose statement it is if that is unclear. Card payments and moves between their own accounts are "Transfer".
-Money moved into the couple's joint chequing account is "Joint account top-up". Payroll is "Income".
+Money moved into the couple's joint chequing account is "Joint account top-up". Payroll is "Income"; rent received from a tenant is "Rental income".
 Never describe shared costs as one partner owing the other; gaps are closed by topping up the joint account.`;
 
 const monthArg = { type: 'string', description: 'Budget month as YYYY-MM. Defaults to the current month.', pattern: '^\\d{4}-\\d{2}$' };

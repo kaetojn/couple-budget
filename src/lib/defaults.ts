@@ -72,12 +72,15 @@ export const defaultCategories = (): Category[] => [
   expense('Other', 0, 'personal', 'dots', '#64748B'),
   { name: 'Joint savings', budget: 0, scope: 'shared', kind: 'savings', icon: 'piggy', color: '#12A150', locked: true },
   { name: 'Income', budget: 0, scope: 'personal', kind: 'income', icon: 'banknote', color: '#12A150', locked: true },
+  { name: RENTAL, budget: 0, scope: 'shared', kind: 'income', icon: 'key', color: '#0B8A5E', locked: true },
   { name: 'Transfer', budget: 0, scope: 'personal', kind: 'transfer', icon: 'swap', color: '#64748B', locked: true },
   { name: JOINT_TOPUP, budget: 0, scope: 'shared', kind: 'transfer', icon: 'swap', color: '#0FA3A3', locked: true },
 ];
 
 /** Category for money a partner moves into the couple's joint account. */
 export const JOINT_TOPUP = 'Joint account top-up';
+/** Category for rent received from a tenant. */
+export const RENTAL = 'Rental income';
 
 const bill = (name: string, amount: number, dueDay: number, icon: string): Bill => ({ id: uid(), name, amount, dueDay, kind: 'bill', payer: 'shared', icon, paid: {} });
 
@@ -150,7 +153,7 @@ export function migrate(raw: any): Doc {
   if (Array.isArray(raw.categories) && raw.categories.length) {
     doc.categories = raw.categories.map((c: any, i: number) => ({ ...c, icon: c.icon ?? guessIcon(c.name), color: c.color ?? COLORS[i % COLORS.length] }));
   }
-  if (!doc.categories.some(c => c.name === JOINT_TOPUP)) doc.categories.push(defaultCategories().find(c => c.name === JOINT_TOPUP)!);
+  for (const name of [JOINT_TOPUP, RENTAL]) if (!doc.categories.some(c => c.name === name)) doc.categories.push(defaultCategories().find(c => c.name === name)!);
   if (!Array.isArray(raw.categories) || !raw.categories.length) doc.categories = base.categories;
   if (raw.version !== 2) {
     for (const [m, h] of Object.entries<any>(raw.history ?? {})) doc.months[m] = { tx: h.tx ?? [] };

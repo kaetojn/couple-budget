@@ -45,6 +45,15 @@ export interface Rule {
   owner: 'shared' | 'personal';
 }
 
+export interface OtherIncome {
+  id: string;
+  name: string;
+  /** Monthly amount. */
+  amount: number;
+  owner: Owner;
+  kind: 'rental' | 'other';
+}
+
 export interface PaySchedule {
   freq: PayFreq;
   /** Any real payday, as YYYY-MM-DD. */
@@ -75,6 +84,8 @@ export interface Settings {
   region: Region;
   /** Statement deposits the couple said are not a paycheque. */
   notPay?: string[];
+  /** Money coming in besides paycheques, such as rent from a property, monthly and after tax. */
+  otherIncome?: OtherIncome[];
   /** Recurring payments found in statements that the couple dismissed. */
   notBills?: string[];
 }

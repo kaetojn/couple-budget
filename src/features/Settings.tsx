@@ -14,7 +14,7 @@ import { applySplit } from '@/lib/plan';
 import { docAtom, eraseDevice, lock, sessionAtom, toast, updateDoc } from '@/lib/store';
 import { REGIONS, type Region } from '@/lib/tax';
 import type { Arrangement, Settings as SettingsType, SplitMethod } from '@/lib/types';
-import { IncomeField } from './PayFields';
+import { IncomeField, OtherIncomeEditor } from './PayFields';
 import { AccountSection, ClaudeSection } from './AccountSection';
 
 export function Settings(_: { go: Go }) {
@@ -72,6 +72,7 @@ export function Settings(_: { go: Go }) {
           <div className="grid gap-3 md:grid-cols-2">
             {(['p1', 'p2'] as const).map(p => <IncomeField key={`${p}-${s.region}`} person={p} />)}
           </div>
+          <OtherIncomeEditor />
         </Card>
       </section>
 

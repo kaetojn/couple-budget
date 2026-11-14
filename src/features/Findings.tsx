@@ -10,7 +10,7 @@ import { who } from '@/lib/compute';
 import { FREQS, SEMI_DAYS } from '@/lib/defaults';
 import { detectRecurring, freqWord, payToConfirm, type PayFound, type RecurringFound } from '@/lib/detect';
 import { dayLabel, money, money0, ordinal, uid } from '@/lib/format';
-import { applySplit, incomeOf, monthlyFrom } from '@/lib/plan';
+import { applySplit, payOf, monthlyFrom } from '@/lib/plan';
 import { docAtom, toast, updateDoc } from '@/lib/store';
 import { accountLabel, payAccounts } from '@/lib/accounts';
 import type { Bill, PayFreq } from '@/lib/types';
@@ -30,7 +30,7 @@ function PayPrompt({ found }: { found: PayFound }) {
   const [freq, setFreq] = useState<PayFreq>(found.freq);
   const [days, setDays] = useState(found.days ?? [15, 31]);
   const name = who(doc, found.person);
-  const entered = incomeOf(doc, found.person);
+  const entered = payOf(doc, found.person);
   const monthly = monthlyFrom(cheque, freq);
   const gap = monthly - entered;
   const lands = payAccounts(doc)[found.person];

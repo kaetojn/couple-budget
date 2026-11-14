@@ -30,6 +30,7 @@ export function sampleDoc(): Doc {
     p1: { freq: 'biweekly', anchor: '2026-01-02', gross: 78500, confirmed: 'ACME CORP|2400|biweekly' },
     p2: { freq: 'semimonthly', anchor: '2026-01-15', days: [15, 31] },
   };
+  doc.settings.otherIncome = [{ id: 'condo', name: 'Condo rent', amount: 2350, owner: 'shared', kind: 'rental' }];
   const now = monthKey();
   [0.94, 1.12, 1].forEach((scale, i) => {
     const month = addMonths(now, i - 3);
@@ -41,6 +42,7 @@ export function sampleDoc(): Doc {
     // Kaeto is paid every second Friday, Bri on the 15th and the last day.
     for (const day of paydays(doc.settings.pay.p1, month)) tx.push(pay('p1', isoDay(month, day), 'ACME CORP PAYROLL', 2400));
     for (const day of paydays(doc.settings.pay.p2, month)) tx.push(pay('p2', isoDay(month, day), 'NORTHWIND PAY', 1300));
+    tx.push({ ...pay('p1', isoDay(month, 1), 'INTERAC E-TRANSFER FROM M. LEE', 2350), category: 'Rental income', owner: 'shared' });
     doc.months[month] = { tx: tx.sort((a, b) => a.date.localeCompare(b.date)) };
   });
   doc.bills.push({ id: uid(), name: 'Visa balance', amount: 250, dueDay: 22, kind: 'debt', payer: 'p1', icon: 'card', balance: 3200, apr: 19.99, targetMonth: addMonths(now, 11), paid: {} });

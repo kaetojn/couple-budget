@@ -49,7 +49,7 @@ ${rules}
 
 Rules:
 - "a" is the amount in dollars: positive when money leaves the account (purchases, debits, withdrawals, fees, interest charged), negative when money comes in (deposits, refunds, payments received on a credit card).
-- Use "Transfer" for credit card payments, moves between a partner's own accounts and e-transfers between the two partners (${doc.settings.p1} and ${doc.settings.p2}). An e-transfer to anyone else is spending (rent, a bill, paying someone back): give it the best spending category, not "Transfer". Use "Joint account top-up" for money a partner moves into the couple's joint chequing account (and for those deposits arriving on the joint account's own statement). Use "Joint savings" for contributions to a joint savings account. Use "Income" for payroll and other deposits.
+- Use "Transfer" for credit card payments, moves between a partner's own accounts and e-transfers between the two partners (${doc.settings.p1} and ${doc.settings.p2}). An e-transfer to anyone else is spending (rent, a bill, paying someone back): give it the best spending category, not "Transfer". Use "Joint account top-up" for money a partner moves into the couple's joint chequing account (and for those deposits arriving on the joint account's own statement). Use "Joint savings" for contributions to a joint savings account. Use "Rental income" for rent received from a tenant (often an e-transfer in from a person who is not one of the partners, around the same amount each month). Use "Income" for payroll and other deposits.
 - "o" is "shared" when the cost belongs to the household, otherwise "personal".
 - Skip opening and closing balances and summary lines. Do not invent transactions.
 

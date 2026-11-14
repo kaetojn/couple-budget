@@ -16,7 +16,13 @@ export const splitText = (s: Settings) => {
 };
 
 export const shareOf = (doc: Doc, p: PersonId) => (p === 'p1' ? doc.settings.split : 100 - doc.settings.split) / 100;
-export const incomeOf = (doc: Doc, p: PersonId) => +(p === 'p1' ? doc.settings.inc1 : doc.settings.inc2) || 0;
+/** Monthly take-home from paycheques alone. */
+export const payOf = (doc: Doc, p: PersonId) => +(p === 'p1' ? doc.settings.inc1 : doc.settings.inc2) || 0;
+/** Monthly income besides pay for one partner: their own, plus their share of income owned together. */
+export const otherIncomeOf = (doc: Doc, p: PersonId) =>
+  (doc.settings.otherIncome ?? []).reduce((a, x) => a + (x.owner === p ? +x.amount || 0 : x.owner === 'shared' ? (+x.amount || 0) * shareOf(doc, p) : 0), 0);
+/** Everything one partner has to spend in a month: pay plus other income such as rent from a property. */
+export const incomeOf = (doc: Doc, p: PersonId) => payOf(doc, p) + otherIncomeOf(doc, p);
 export const savingsOf = (doc: Doc, p: PersonId) => +(p === 'p1' ? doc.settings.sav1 : doc.settings.sav2) || 0;
 
 /** Payment needed this month. For a debt with a target month, the amount that clears it on time. */
@@ -61,6 +67,8 @@ export const perCheque = (monthly: number, freq: PayFreq) => (monthly * 12) / PE
 export const monthlyFrom = (cheque: number, freq: PayFreq) => (cheque * PER_YEAR[freq]) / 12;
 
 export interface Allocation {
+  pay: number;
+  other: number;
   income: number;
   bills: number;
   debt: number;
@@ -81,7 +89,7 @@ export function allocation(doc: Doc, p: PersonId, month: string): Allocation {
   const flexible = Math.max(0, sharedBudget - sharedBills) * shareOf(doc, p);
   const savings = savingsOf(doc, p);
   const cheques = paydays(doc.settings.pay[p], month).length || 1;
-  return { income, bills, debt, flexible, savings, left: income - bills - debt - flexible - savings, cheques: joint ? cheques : cheques };
+  return { pay: payOf(doc, p), other: otherIncomeOf(doc, p), income, bills, debt, flexible, savings, left: income - bills - debt - flexible - savings, cheques: joint ? cheques : cheques };
 }
 
 export interface AgendaItem {
@@ -98,7 +106,7 @@ export function agenda(doc: Doc, month: string): AgendaItem[] {
   const items: AgendaItem[] = [];
   for (const p of ['p1', 'p2'] as PersonId[]) {
     const days = paydays(doc.settings.pay[p], month);
-    const each = days.length ? incomeOf(doc, p) / days.length : 0;
+    const each = days.length ? payOf(doc, p) / days.length : 0;
     if (each > 0) for (const day of days) items.push({ day, type: 'pay', label: `${who(doc, p)}'s payday`, amount: each, person: p });
   }
   for (const b of doc.bills) items.push({ day: Math.min(n, b.dueDay), type: 'bill', label: b.name, amount: billPayment(b, month), bill: b });

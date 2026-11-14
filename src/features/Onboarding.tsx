@@ -14,7 +14,7 @@ import { ARRANGEMENTS, METHODS } from '@/lib/defaults';
 import { money, money0, monthLabel, pct } from '@/lib/format';
 import { allocation, applySplit, billPayment, breakdownAdvice, planOf, splitText } from '@/lib/plan';
 import { isSupported, REGIONS, TAX_YEAR, type Region } from '@/lib/tax';
-import { IncomeField, PaySchedulePicker } from './PayFields';
+import { IncomeField, OtherIncomeEditor, PaySchedulePicker } from './PayFields';
 import { docAtom, importAtom, monthAtom, store, toast, updateDoc } from '@/lib/store';
 import type { Arrangement, PersonId, Settings, SplitMethod } from '@/lib/types';
 
@@ -103,6 +103,7 @@ export function Onboarding({ go }: { go: Go }) {
       <>
         <Head title="What does each of you earn?" text="Your incomes drive the suggested split, the paycheque plan and the insights on your home page." />
         {people.map(p => <IncomeField key={p} person={p} />)}
+        <OtherIncomeEditor />
         {plan.income > 0 && <p className="text-muted">Together you take home <strong className="num text-ink">{money(plan.income)}</strong> a month.</p>}
       </>
     ),

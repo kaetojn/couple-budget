@@ -1,16 +1,18 @@
 import { useAtomValue } from 'jotai';
 import { useState } from 'react';
-import { LuChevronDown } from 'react-icons/lu';
+import { LuChevronDown, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { Button } from '@/components/ui/button';
+import { useOwnerOptions } from '@/components/ui/misc';
 import { Field } from '@/components/ui/card';
 import { MoneyInput, Segmented, Select, Stepper, TextInput } from '@/components/ui/controls';
 import { cn } from '@/lib/cn';
 import { who } from '@/lib/compute';
 import { FREQS, SEMI_DAYS } from '@/lib/defaults';
-import { dayOf, money, money0, monthKey, ordinal } from '@/lib/format';
-import { applySplit, incomeOf, perCheque } from '@/lib/plan';
+import { dayOf, money, money0, monthKey, ordinal, uid } from '@/lib/format';
+import { applySplit, payOf, perCheque } from '@/lib/plan';
 import { docAtom, updateDoc } from '@/lib/store';
 import { isSupported, REGIONS, takeHome, TAX_YEAR } from '@/lib/tax';
-import type { PayFreq, PaySchedule, PersonId } from '@/lib/types';
+import type { OtherIncome, Owner, PayFreq, PaySchedule, PersonId } from '@/lib/types';
 
 export const freqOptions = (Object.keys(FREQS) as PayFreq[]).map(value => ({ value, label: FREQS[value] }));
 
@@ -51,7 +53,7 @@ export function PaySchedulePicker({ person }: { person: PersonId }) {
   const doc = useAtomValue(docAtom);
   const pay = doc.settings.pay[person];
   const set = (patch: Partial<PaySchedule>) => updateDoc(d => { d.settings.pay[person] = fixAnchor({ ...d.settings.pay[person], ...patch }); });
-  const income = incomeOf(doc, person);
+  const income = payOf(doc, person);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Paid"><Select<PayFreq> value={pay.freq} onChange={freq => set({ freq })} options={freqOptions} /></Field>
@@ -67,9 +69,9 @@ export function IncomeField({ person }: { person: PersonId }) {
   const s = doc.settings;
   const supported = isSupported(s.region);
   const gross = s.pay[person].gross ?? 0;
-  const [mode, setMode] = useState<'salary' | 'net'>(supported && (gross > 0 || !incomeOf(doc, person)) ? 'salary' : 'net');
+  const [mode, setMode] = useState<'salary' | 'net'>(supported && (gross > 0 || !payOf(doc, person)) ? 'salary' : 'net');
   const [open, setOpen] = useState(false);
-  const income = incomeOf(doc, person);
+  const income = payOf(doc, person);
   const est = supported ? takeHome(gross, s.region) : null;
   const key = person === 'p1' ? 'inc1' : 'inc2';
   const region = REGIONS.find(r => r.value === s.region)?.label ?? s.region;
@@ -120,6 +122,36 @@ export function IncomeField({ person }: { person: PersonId }) {
           <MoneyInput label={`${who(doc, person)} monthly take-home`} value={income} onChange={setIncome} step={100} />
         </Field>
       )}
+    </div>
+  );
+}
+
+/** Income besides paycheques, such as rent from a property, entered as a monthly amount after tax. */
+export function OtherIncomeEditor() {
+  const doc = useAtomValue(docAtom);
+  const list = doc.settings.otherIncome ?? [];
+  const owners = useOwnerOptions<Owner>(['p1', 'shared', 'p2']);
+  const set = (fn: (l: OtherIncome[]) => OtherIncome[]) => updateDoc(d => { d.settings.otherIncome = fn(d.settings.otherIncome ?? []); });
+  const patch = (id: string, p: Partial<OtherIncome>) => set(l => l.map(x => (x.id === id ? { ...x, ...p } : x)));
+  return (
+    <div className="grid gap-3 rounded-2xl bg-canvas p-3">
+      <div>
+        <p className="font-semibold">Other income</p>
+        <p className="text-[13px] text-muted">Rent from a property you own, side work, child benefits. It counts toward what you have each month.</p>
+      </div>
+      {list.map(x => (
+        <div key={x.id} className="grid animate-rise gap-2 rounded-2xl bg-surface p-3">
+          <div className="flex items-center gap-2">
+            <TextInput aria-label="What it is" value={x.name} placeholder="Condo rent" onChange={e => patch(x.id, { name: e.target.value, kind: /rent|tenant|lease|condo|property/i.test(e.target.value) ? 'rental' : x.kind })} />
+            <Button size="icon" variant="ghost" aria-label={`Remove ${x.name || 'income'}`} onClick={() => set(l => l.filter(y => y.id !== x.id))}><LuTrash2 /></Button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <MoneyInput label={`${x.name || 'Income'} a month`} value={x.amount} onChange={amount => patch(x.id, { amount })} step={50} />
+            <Segmented size="sm" value={x.owner} onChange={owner => patch(x.id, { owner })} options={owners} />
+          </div>
+        </div>
+      ))}
+      <Button size="sm" variant="soft" className="justify-self-start" onClick={() => set(l => [...l, { id: uid(), name: l.length ? '' : 'Condo rent', amount: 0, owner: 'shared', kind: l.length ? 'other' : 'rental' }])}><LuPlus />Add income</Button>
     </div>
   );
 }

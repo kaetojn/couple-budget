@@ -14,6 +14,7 @@ import { extractStatement, isImage, type StatementAccount } from '@/lib/ai';
 import { upsertAccount } from '@/lib/accounts';
 import { coverage, detectRecurring, fileByDate } from '@/lib/detect';
 import { coveredByBill } from '@/lib/plan';
+import { cashflow } from '@/lib/cashflow';
 import { reconcileTransfers, rememberPayee, transferSummary } from '@/lib/transfers';
 import { accountLabel } from '@/lib/accounts';
 import { PayPrompts } from './Findings';
@@ -133,6 +134,7 @@ export function Month({ go }: { go: Go }) {
         ) : (
           <>
             <Summary month={month} totals={totals} day={day} owner={owner} search={search.trim()} narrowed={narrowed} onClear={clearFilters} />
+            <MoneyInOut month={month} />
             <TransfersLine month={month} />
             <Calendar doc={doc} tx={tx} month={month} day={day} onDay={setDay} />
 
@@ -668,5 +670,49 @@ function CheckTransfer({ t, month }: { t: Tx; month: string }) {
       )}
       <label className="flex items-center gap-2 text-[13px] text-muted"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="size-4 accent-[var(--color-brand)]" />Do the same for this payee next time</label>
     </div>
+  );
+}
+
+/** Earned against spent for the month, and what a rented property nets after its own costs. */
+function MoneyInOut({ month }: { month: string }) {
+  const doc = useAtomValue(docAtom);
+  const c = useMemo(() => cashflow(doc, month), [doc, month]);
+  const income = c.fromPlan ? c.expected : c.earned;
+  if (income <= 0 && c.spent <= 0) return null;
+  const max = Math.max(income, c.spent + c.saved, 1);
+  const sources = [
+    { label: 'Pay', value: c.pay }, { label: 'Rental income', value: c.rental }, { label: 'Other', value: c.other },
+  ].filter(x => x.value > 0.5);
+  return (
+    <Card className="grid gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-muted">{c.left >= 0 ? 'Left after spending and saving' : 'Spent more than came in'}</p>
+          <p className={cn('display num text-3xl font-bold', c.left < 0 && 'text-bad')}>{c.left < 0 ? '−' : ''}{money0(Math.abs(c.left))}</p>
+        </div>
+        {c.fromPlan && <p className="max-w-56 text-right text-[12px] text-muted">No deposits in this month's statements, so this uses your expected income.</p>}
+      </div>
+      <div className="grid gap-2.5">
+        <div className="grid gap-1">
+          <div className="flex justify-between text-sm"><span className="font-semibold text-good">Money in{c.fromPlan ? ' (expected)' : ''}</span><span className="num font-semibold">{money0(income)}</span></div>
+          <div className="h-3 rounded-full bg-canvas"><div className="h-3 rounded-full bg-good transition-all duration-700" style={{ width: `${(income / max) * 100}%` }} /></div>
+          {sources.length > 1 && <p className="num text-[12px] text-muted">{sources.map(x => `${x.label} ${money0(x.value)}`).join(' · ')}</p>}
+        </div>
+        <div className="grid gap-1">
+          <div className="flex justify-between text-sm"><span className="font-semibold">Money out</span><span className="num font-semibold">{money0(c.spent + c.saved)}</span></div>
+          <div className="flex h-3 overflow-hidden rounded-full bg-canvas">
+            <div className="h-3 bg-ink/80 transition-all duration-700" style={{ width: `${(c.spent / max) * 100}%` }} />
+            <div className="h-3 bg-[#12A150]/60 transition-all duration-700" style={{ width: `${(c.saved / max) * 100}%` }} />
+          </div>
+          <p className="num text-[12px] text-muted">Spent {money0(c.spent)}{c.saved > 0 ? ` · Saved ${money0(c.saved)}` : ''}. Transfers between your accounts are not counted.</p>
+        </div>
+      </div>
+      {c.property && (
+        <div className="grid gap-1 rounded-2xl bg-canvas p-3 text-sm">
+          <p className="flex items-center justify-between font-semibold"><span>Rental property{c.property.fromPlan ? ' (planned)' : ''}</span><span className={cn('num', c.property.net >= 0 ? 'text-good' : 'text-bad')}>{c.property.net >= 0 ? '+' : '−'}{money0(Math.abs(c.property.net))} a month</span></p>
+          <p className="num text-[13px] text-muted">Rent in {money0(c.property.rent)} − {c.property.costNames.length ? c.property.costNames.join(', ').toLowerCase() : 'costs'} {money0(c.property.costs)}</p>
+        </div>
+      )}
+    </Card>
   );
 }
