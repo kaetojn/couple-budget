@@ -1,11 +1,12 @@
 import { api, parseJson } from './api';
+import { accountType, CLASSES, drift, portfolio, TARGETS, valueCad, type InvAccount } from './invest';
 import { accountLabel, cardChecks, fundingChecks } from './accounts';
 import { crossText, sharedCheck, shortText } from './shared';
 import { applyRules, catOf, computeMonth, merchantKey, ownerFor, who } from './compute';
 import { ARRANGEMENTS, METHODS } from './defaults';
 import { monthLabel, uid } from './format';
 import { billPayment, incomeOf, netWorth, planOf, splitText } from './plan';
-import type { Checkup, Doc, Payer, Tx } from './types';
+import type { Checkup, Doc, Owner, Payer, Tx } from './types';
 
 const readBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -148,4 +149,51 @@ Reply with JSON only:
   const data = parseJson<Partial<Checkup>>(out.text);
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 3) : []);
   return { headline: String(data.headline ?? ''), wins: list(data.wins), watch: list(data.watch), actions: list(data.actions), at: new Date().toISOString() };
+}
+
+/** Reads a holdings export that is not in Wealthsimple's format, with Claude. */
+export async function extractHoldings(passcode: string, text: string, owner: Owner): Promise<InvAccount[]> {
+  const prompt = `This is a brokerage holdings export (CSV or text). List every account and position.
+Reply with JSON only, no prose:
+{"accounts":[{"name":"account name","type":"TFSA|RRSP|FHSA|RESP|Non-registered|Crypto|Other","number":"account number or null","asOf":"YYYY-MM-DD or null",
+"holdings":[{"symbol":"XEQT","name":"security name","exchange":"TSX|NYSE|NASDAQ|...","kind":"EXCHANGE_TRADED_FUND|EQUITY|MUTUAL_FUND|CRYPTOCURRENCY|CASH","qty":1.5,"price":33.12,"currency":"CAD|USD","bookCad":1234.5}]}]}
+Use the market price per unit; if only a market value is shown, divide it by the quantity.
+
+${text.slice(0, 60000)}`;
+  const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a careful data clerk. You output strict JSON.', 8000);
+  const data = parseJson<{ accounts?: any[] }>(out.text);
+  const today = new Date().toLocaleDateString('en-CA');
+  return (data.accounts ?? []).filter(a => a && Array.isArray(a.holdings)).map(a => ({
+    id: uid(), name: String(a.name || 'Investment account'), type: accountType(String(a.type || a.name || '')), owner, ...(a.number ? { number: String(a.number) } : {}),
+    asOf: /^\d{4}-\d{2}-\d{2}$/.test(a.asOf) ? a.asOf : today,
+    holdings: a.holdings.filter((h: any) => h && h.symbol && +h.qty).map((h: any) => ({
+      symbol: String(h.symbol), name: String(h.name || h.symbol), qty: +h.qty, price: +h.price || 0, currency: String(h.currency || 'CAD').toUpperCase(),
+      ...(h.exchange ? { exchange: String(h.exchange) } : {}), ...(h.kind ? { kind: String(h.kind) } : {}), ...(+h.bookCad ? { bookCad: +h.bookCad } : {}),
+    })),
+  })).filter(a => a.holdings.length);
+}
+
+export interface PortfolioCheckup { summary: string; strengths: string[]; watch: string[]; next: string[] }
+
+/**
+ * An educational review of the couple's own portfolio: mix against their target, concentration,
+ * fees, account types and what to do with new money. It never picks stocks or times the market.
+ */
+export async function runPortfolioCheckup(passcode: string, doc: Doc, monthly: number): Promise<PortfolioCheckup> {
+  const inv = doc.investments!;
+  const p = portfolio(inv);
+  const s = doc.settings;
+  const lines = inv.accounts.map(a => `${a.name} (${a.type}, ${who(doc, a.owner)}): ${a.holdings.map(h => `${h.symbol} ${h.name} ${valueCad(h, inv.fx).toFixed(0)} CAD`).join('; ')}`).join('\n');
+  const mix = drift(inv).map(d => `${CLASSES[d.cls].label}: ${(d.now * 100).toFixed(0)}% (target ${(d.target * 100).toFixed(0)}%)`).join(', ');
+  const prompt = `Review this Canadian couple's investment portfolio. ${s.p1} takes home ${s.inc1.toFixed(0)} a month and ${s.p2} ${s.inc2.toFixed(0)}. They can invest about ${monthly.toFixed(0)} a month.
+Total ${p.total.toFixed(0)} CAD, book cost ${p.book.toFixed(0)} CAD. Target mix: ${TARGETS[inv.target].label} (${TARGETS[inv.target].hint}).
+Current mix: ${mix}. Crypto ${p.byClass.crypto.toFixed(0)} CAD. Held in USD: ${p.usd.toFixed(0)} CAD.
+Accounts and holdings:
+${lines}
+
+Rules: be educational and specific to these holdings. Comment on diversification, the mix against their target, single-company concentration, fund fees (name any fund you know to have a high management expense ratio and the typical cost of a broad index ETF), account types (TFSA, RRSP, FHSA), currency, and how to direct the monthly amount to rebalance without selling. Do not recommend individual stocks, do not predict markets or suggest timing, and do not suggest buying something because it recently went up. Plain language, short sentences.
+Reply with JSON only: {"summary":"2 sentences","strengths":["..."],"watch":["..."],"next":["concrete step"]} with 2 to 4 items in each list.`;
+  const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken, fee-conscious investing educator, not an advisor. You output strict JSON.', 1800);
+  const r = parseJson<PortfolioCheckup>(out.text);
+  return { summary: String(r.summary || ''), strengths: (r.strengths ?? []).map(String), watch: (r.watch ?? []).map(String), next: (r.next ?? []).map(String) };
 }

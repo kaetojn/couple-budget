@@ -37,6 +37,7 @@ npm run build      # production build in dist/
 Secrets: `ANTHROPIC_API_KEY`, `APP_PASSCODE`, `AUTH_SECRET`, `SHEET_URL`, `SHEET_TOKEN`, and optionally `SIGNUP_CODE`. Binding: a KV namespace named `DB`.
 
 - `AUTH_SECRET` is any long random string (`openssl rand -base64 32`). It signs sign-in tokens; changing it signs everyone out, Claude included.
+- `MARKET_API_KEY` is an optional free Alpha Vantage key for daily investment prices. Prices are cached for 20 hours in KV (`px:<symbol>`) and shared by all households; the free tier allows 25 calls a day and 5 a minute, so the app fetches at most 5 new prices per request and retries the rest. Without a key, the Invest tab uses the prices from the uploaded holdings report.
 - `SIGNUP_CODE` lets new households sign up. Leave it unset to keep sign-ups closed; partners can still join with an invite code.
 - `APP_PASSCODE` opens the original household, whose data stays under the KV key `household`. Other households are stored under `hh:<id>`.
 
@@ -53,4 +54,8 @@ Sign-in tokens are HMAC-signed and carry their own expiry (app sessions 90 days,
 
 ### Claude connector
 
-The connector lives at `https://couple-budget.kaetojn.workers.dev/mcp` (MCP over HTTP, JSON responses). OAuth 2.1 with PKCE, dynamic client registration and protected-resource metadata are served from the same Worker. Tools: `get_overview`, `list_categories`, `list_transactions`, `add_transactions`, `update_transaction`, `set_budget`, `get_bills`, `update_account`.
+The connector lives at `https://couple-budget.kaetojn.workers.dev/mcp` (MCP over HTTP, JSON responses). OAuth 2.1 with PKCE, dynamic client registration and protected-resource metadata are served from the same Worker. Tools: `get_overview`, `list_categories`, `list_transactions`, `add_transactions`, `update_transaction`, `set_budget`, `get_bills`, `get_investments`, `update_account`.
+
+### Investments
+
+The Invest tab reads Wealthsimple holdings reports (Profile, Documents, Generate document, Holdings report CSV) locally, matching columns by name; other brokerages' CSVs are read by Claude. Logic lives in `src/lib/invest.ts`: asset classes (all-in-one ETFs are split by approximate weights), target mixes, how to place new money to rebalance without selling, and TFSA/RRSP guidance from each partner's marginal rate. Each investment account is mirrored into Net worth as an `inv-<id>` account.

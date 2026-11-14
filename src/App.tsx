@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import type { IconType } from 'react-icons';
-import { LuCalendarDays, LuChartLine, LuChartPie, LuCloud, LuCloudOff, LuLayoutDashboard, LuRefreshCw, LuSettings, LuTarget } from 'react-icons/lu';
+import { LuCalendarDays, LuChartLine, LuChartPie, LuCloud, LuCloudOff, LuLayoutDashboard, LuRefreshCw, LuSettings, LuTarget, LuTrendingUp } from 'react-icons/lu';
 import { Logo } from './components/logo';
 import { Button } from './components/ui/button';
 import { Toasts } from './components/ui/misc';
@@ -10,6 +10,7 @@ import { Home } from './features/Home';
 import { Lock } from './features/Lock';
 import { Month } from './features/Month';
 import { NetWorth } from './features/NetWorth';
+import { Invest } from './features/Invest';
 import { Onboarding } from './features/Onboarding';
 import { Plan } from './features/Plan';
 import { Settings } from './features/Settings';
@@ -25,8 +26,9 @@ const TABS: { id: string; label: string; icon: IconType }[] = [
   { id: 'budgets', label: 'Budgets', icon: LuChartPie },
   { id: 'plan', label: 'Plan', icon: LuTarget },
   { id: 'worth', label: 'Net worth', icon: LuChartLine },
+  { id: 'invest', label: 'Invest', icon: LuTrendingUp },
 ];
-const PAGES: Record<string, (p: { go: Go }) => React.ReactNode> = { home: Home, month: Month, budgets: Budgets, plan: Plan, worth: NetWorth, settings: Settings };
+const PAGES: Record<string, (p: { go: Go }) => React.ReactNode> = { home: Home, month: Month, budgets: Budgets, plan: Plan, worth: NetWorth, invest: Invest, settings: Settings };
 
 function SyncBadge({ state }: { state: SyncState }) {
   if (state === 'idle') return null;
@@ -104,7 +106,7 @@ export default function App() {
         <Page go={go} />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Sections">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Sections">
         {TABS.map(t => (
           <a key={t.id} href={`#/${t.id}`} aria-current={route === t.id ? 'page' : undefined} className={cn('flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition', route === t.id ? 'text-brand' : 'text-muted')}>
             <span className={cn('grid h-7 w-12 place-items-center rounded-full text-xl transition', route === t.id && 'bg-brand-soft')}><t.icon aria-hidden /></span>

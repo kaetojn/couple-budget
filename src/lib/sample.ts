@@ -1,6 +1,7 @@
 import { defaultDoc } from './defaults';
 import { addMonths, isoDay, monthKey, uid } from './format';
 import { applySplit, paydays } from './plan';
+import { syncNetWorth } from './invest';
 import type { Doc, Payer, Tx } from './types';
 
 type Row = [Payer, number, string, number, string, 's' | 'p' | 'k'];
@@ -49,11 +50,23 @@ export function sampleDoc(): Doc {
   doc.accounts = [
     { id: 'visa', name: 'TD Visa', type: 'credit', owner: 'p1', balance: 1240, last4: '4417', institution: 'TD', asOf: `${last}-28`, due: { balance: 1240, min: 35, date: `${now}-22`, end: `${last}-28` } },
     { id: uid(), name: 'Joint savings', type: 'savings', owner: 'shared', balance: 18400 },
-    { id: uid(), name: 'TFSA', type: 'investment', owner: 'p1', balance: 31250 },
     { id: uid(), name: 'Chequing', type: 'chequing', owner: 'p2', balance: 4120 },
     { id: uid(), name: 'Car', type: 'vehicle', owner: 'shared', balance: 14500 },
     { id: uid(), name: 'Car loan', type: 'loan', owner: 'shared', balance: 9800 },
   ];
+  // Investments, as a Wealthsimple holdings report would give them.
+  const day = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toLocaleDateString('en-CA'); };
+  const ws = (symbol: string, name: string, qty: number, price: number, bookCad: number, kind = 'EXCHANGE_TRADED_FUND', currency = 'CAD', mic = 'XTSE') => ({ symbol, name, qty, price, bookCad, kind, currency, mic });
+  doc.investments = {
+    target: 'growth80', fx: 1.39, fxLive: false,
+    accounts: [
+      { id: 'ws-tfsa-k', name: 'Wealthsimple TFSA', type: 'TFSA', owner: 'p1', number: 'WK1234567CAD', asOf: day(1), holdings: [ws('XEQT', 'iShares Core Equity ETF Portfolio', 520, 34.1, 15200), ws('SHOP', 'Shopify Inc', 22, 212.4, 2900, 'EQUITY')] },
+      { id: 'ws-rrsp-k', name: 'Wealthsimple RRSP', type: 'RRSP', owner: 'p1', number: 'WK7654321CAD', asOf: day(1), holdings: [ws('VFV', 'Vanguard S&P 500 Index ETF', 48, 154.2, 6100), ws('ZAG', 'BMO Aggregate Bond Index ETF', 120, 14.02, 1700)] },
+      { id: 'ws-tfsa-b', name: 'Wealthsimple TFSA', type: 'TFSA', owner: 'p2', number: 'WB2222222CAD', asOf: day(1), holdings: [ws('VGRO', 'Vanguard Growth ETF Portfolio', 210, 37.8, 7200), ws('CASH', 'Global X High Interest Savings ETF', 30, 50.05, 1500)] },
+    ],
+    history: Object.fromEntries([41800, 42350, 41900, 42900, 43600, 43200, 44100].map((v, i) => [day((6 - i) * 14), v])),
+  };
+  syncNetWorth(doc);
   [48200, 50100, 51900, 53400, 54600, 55270].forEach((net, i) => {
     doc.snapshots[addMonths(now, i - 5)] = { assets: net + 13000, debts: 13000 };
   });

@@ -47,6 +47,8 @@ export const api = {
   invite: (credential: string) => post('/account/invite', credential) as Promise<{ code: string; expires: string }>,
   changePassword: (credential: string, current: string, next: string) => post('/account/password', credential, { current, next }) as Promise<{ token: string }>,
   signOutEverywhere: (credential: string) => post('/account/signout-everywhere', credential),
+  prices: (credential: string, symbols: { symbol: string; exchange?: string; mic?: string; kind?: string }[]) =>
+    post('/prices', credential, { symbols }) as Promise<{ live: boolean; quotes: Record<string, { price: number; currency: string; day?: string; change?: number }>; fx: number | null; pending: number; limited: boolean }>,
   load: async (passcode: string) => (await post('/load', passcode)).data as unknown,
   save: (passcode: string, data: unknown) => post('/save', passcode, { data }),
   sheet: (passcode: string, payload: { tabName: string; rows: unknown[][]; boldRows: number[] }) => post('/sheet', passcode, payload),

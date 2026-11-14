@@ -1,3 +1,4 @@
+import type { Investments } from './invest';
 import type { Region } from './tax';
 
 export type PersonId = 'p1' | 'p2';
@@ -131,5 +132,6 @@ export interface Doc {
   bills: Bill[];
   accounts: Account[];
   snapshots: Record<string, { assets: number; debts: number }>;
+  investments?: Investments;
   updatedAt?: string;
 }

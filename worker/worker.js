@@ -12,6 +12,7 @@
 //   AUTH_SECRET        a long random string that signs sign-in tokens (accounts and the connector need it)
 //   SHEET_URL          the Apps Script web app URL, ending in /exec (Google Sheets export, original household only)
 //   SHEET_TOKEN        the TOKEN value on the first line of the Apps Script
+//   MARKET_API_KEY     optional. A free Alpha Vantage key (alphavantage.co) for daily investment prices.
 //   SIGNUP_CODE        optional. New households can only be created with this code. Leave it unset to keep sign-ups closed.
 // Binding to add: a KV namespace with the variable name DB.
 
@@ -275,6 +276,8 @@ async function route(request, env, path) {
     return ok({ token: await sessionFor(env, who.user) });
   }
 
+  if (path === '/prices') return ok(await prices(env, (await readJson(request)).symbols));
+
   if (path === '/sheet') {
     if (who.hh !== LEGACY) throw new HttpError(403, 'Google Sheets export is not set up for this household.');
     if (!env.SHEET_URL || !env.SHEET_TOKEN) throw new HttpError(500, 'SHEET_URL and SHEET_TOKEN are not set on the Worker');
@@ -297,6 +300,70 @@ async function route(request, env, path) {
   }
 
   throw new HttpError(404, 'Unknown path');
+}
+
+/* ───────────────────────── Market prices ───────────────────────── */
+
+/**
+ * Alpha Vantage symbols: TSX listings end in .TRT, TSX Venture in .TRV, US listings are plain.
+ * Crypto and Cboe Canada (NEO) listings are not priced; the app keeps the upload's price for those.
+ */
+function marketSymbol(s) {
+  const sym = String(s.symbol || '').toUpperCase().replace(/\s+/g, '');
+  const where = `${s.mic || ''} ${s.exchange || ''}`.toUpperCase();
+  if (!sym || /CRYPTO/.test(String(s.kind || '').toUpperCase())) return null;
+  if (/XTSE|\bTSX\b(?!V)|TORONTO/.test(where)) return `${sym.replace(/\./g, '-')}.TRT`;
+  if (/XTSX|TSXV|TSX-V|VENTURE/.test(where)) return `${sym.replace(/\./g, '-')}.TRV`;
+  if (/XNYS|XNAS|ARCX|BATS|XASE|NYSE|NASDAQ|ARCA|AMEX/.test(where)) return sym.replace(/\./g, '-');
+  return null;
+}
+
+async function alpha(env, params) {
+  const res = await fetch(`https://www.alphavantage.co/query?${new URLSearchParams({ ...params, apikey: env.MARKET_API_KEY })}`);
+  return res.json();
+}
+
+/**
+ * Latest prices, cached for 20 hours and shared by every household (prices are public).
+ * The free Alpha Vantage key allows 5 calls a minute and 25 a day, so each request fetches at most
+ * 5 new prices and reports how many are still waiting.
+ */
+async function prices(env, symbols = []) {
+  const live = !!env.MARKET_API_KEY;
+  let budget = 5, pending = 0, limited = false;
+  const fresh = 20 * 3600;
+  let fx = await env.DB.get('px:USDCAD', 'json');
+  if (live && (!fx || fx.at < now() - fresh)) {
+    budget--;
+    const j = await alpha(env, { function: 'CURRENCY_EXCHANGE_RATE', from_currency: 'USD', to_currency: 'CAD' }).catch(() => ({}));
+    const rate = +j?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'];
+    if (rate > 0) { fx = { rate, at: now() }; await env.DB.put('px:USDCAD', JSON.stringify(fx)); }
+    else if (j.Note || j.Information) limited = true;
+  }
+  const quotes = {};
+  for (const s of (Array.isArray(symbols) ? symbols : []).slice(0, 80)) {
+    const sym = marketSymbol(s);
+    if (!sym) continue;
+    const cached = await env.DB.get(`px:${sym}`, 'json');
+    if (cached && (cached.at > now() - fresh || (cached.unsupported && cached.at > now() - 7 * DAY))) { if (!cached.unsupported) quotes[s.symbol] = cached; continue; }
+    if (!live || limited || budget <= 0) { if (cached && !cached.unsupported) quotes[s.symbol] = cached; pending++; continue; }
+    budget--;
+    const j = await alpha(env, { function: 'GLOBAL_QUOTE', symbol: sym }).catch(() => ({}));
+    const q = j?.['Global Quote'];
+    const price = q && +q['05. price'];
+    if (price > 0) {
+      const v = { price, currency: /\.TR[TV]$/.test(sym) ? 'CAD' : 'USD', day: q['07. latest trading day'], change: parseFloat(String(q['10. change percent'] || '0').replace('%', '')) || 0, at: now() };
+      await env.DB.put(`px:${sym}`, JSON.stringify(v));
+      quotes[s.symbol] = v;
+    } else if (j?.Note || j?.Information) {
+      limited = true;
+      pending++;
+      if (cached && !cached.unsupported) quotes[s.symbol] = cached;
+    } else {
+      await env.DB.put(`px:${sym}`, JSON.stringify({ unsupported: true, at: now() }));
+    }
+  }
+  return { live, quotes, fx: fx?.rate ?? null, pending, limited };
 }
 
 /* ───────────────────────── Claude connector: OAuth ───────────────────────── */
@@ -579,6 +646,12 @@ const TOOLS = [
     annotations: { title: 'Bills and accounts', readOnlyHint: true },
   },
   {
+    name: 'get_investments',
+    description: 'Investment accounts (TFSA, RRSP, FHSA, non-registered, crypto) with each holding, its value in CAD and the date of the latest holdings report. Educational use only: do not recommend individual stocks or market timing.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { title: 'Investments', readOnlyHint: true },
+  },
+  {
     name: 'update_account',
     description: 'Records an account balance from a statement, adding the account if it is new. For credit cards, also records the statement balance, minimum and due date.',
     inputSchema: {
@@ -823,6 +896,17 @@ async function runTool(name, a, env, hh) {
       bills: doc.bills.map(b => ({ name: b.name, kind: b.kind, amount: b.amount, due_day: b.dueDay, paid_by: person(doc, b.payer), marked_paid: b.paid?.[month] ?? null, ...(b.kind === 'debt' ? { balance: b.balance ?? null } : {}) })),
       accounts: doc.accounts.map(x => ({ name: x.name, type: x.type, owner: person(doc, x.owner), balance: x.balance, ...(x.last4 ? { last4: x.last4 } : {}), ...(x.asOf ? { as_of: x.asOf } : {}), ...(x.due ? { card_statement: x.due } : {}) })),
     };
+  }
+
+  if (name === 'get_investments') {
+    const inv = doc.investments;
+    if (!inv?.accounts?.length) return 'No investment accounts yet. Upload a Wealthsimple holdings report in the Invest tab of the app.';
+    const fx = inv.fx || 1.38;
+    const accounts = inv.accounts.map(acc => {
+      const holdings = acc.holdings.map(h => ({ symbol: h.symbol, name: h.name, quantity: h.qty, price: h.price, currency: h.currency, value_cad: r2(h.qty * h.price * (String(h.currency).toUpperCase() === 'USD' ? fx : 1)), ...(h.bookCad ? { book_value_cad: h.bookCad } : {}) }));
+      return { name: acc.name, type: acc.type, owner: person(doc, acc.owner), as_of: acc.asOf, value_cad: r2(holdings.reduce((t, h) => t + h.value_cad, 0)), holdings };
+    });
+    return { usd_to_cad: fx, target_mix: inv.target, total_cad: r2(accounts.reduce((t, x) => t + x.value_cad, 0)), accounts };
   }
 
   if (name === 'update_account') {
