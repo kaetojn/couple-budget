@@ -31,6 +31,7 @@ export function AccountSection() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [invite, setInvite] = useState('');
+  const [reset, setReset] = useState<{ email: string; code: string } | null>(null);
   const [changing, setChanging] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }));
 
@@ -96,9 +97,19 @@ export function AccountSection() {
                 <div key={m.email} className="flex items-center gap-3">
                   <Avatar id={i === 0 ? 'p1' : 'p2'} size={32} />
                   <div className="min-w-0 flex-1"><p className="truncate font-semibold">{m.name || m.email}{m.email === info?.user?.email ? ' (you)' : ''}</p><p className="truncate text-[13px] text-muted">{m.email}</p></div>
+                  {info?.user && m.email !== info.user.email && (
+                    <Button size="sm" variant="ghost" className="shrink-0" busy={busy === `reset-${m.email}`} onClick={() => void run(`reset-${m.email}`, async () => setReset({ email: m.email, code: (await api.resetCode(passcode, m.email)).code }))}>Reset password</Button>
+                  )}
                 </div>
               ))}
             </div>
+            {reset && (
+              <div className="grid animate-rise gap-2 rounded-2xl bg-canvas p-3">
+                <p className="text-sm">Give this code to {reset.email}. On the sign-in screen they choose <strong>Email</strong>, then <strong>Forgot your password?</strong>, and enter it with a new password.</p>
+                <CopyField value={reset.code} label="reset code" />
+                <p className="text-[13px] text-muted">Works once, for 24 hours.</p>
+              </div>
+            )}
             {(info?.members.length ?? 0) < 2 && (
               <div className="grid gap-2 rounded-2xl bg-canvas p-3">
                 <p className="text-sm">Invite your partner. They choose <strong>Email</strong> on the sign-in screen, then <strong>Create an account</strong>, and enter this code.</p>

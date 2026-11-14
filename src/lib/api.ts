@@ -42,8 +42,17 @@ export const api = {
   // An older Worker answers with only { ok: true }; treat that as the original passcode household.
   check: async (passcode: string): Promise<CheckResult> => ({ household: 'legacy', mode: 'passcode', user: null, members: [], sheets: true, signup: false, ...(await post('/check', passcode)) }),
   login: (email: string, password: string) => post('/auth/login', '', { email, password }) as Promise<SignedIn>,
-  signup: (body: { email: string; password: string; name: string; invite?: string; signupCode?: string }) => post('/auth/signup', '', body) as Promise<SignedIn>,
+  signup: (body: { email: string; password: string; name: string; invite?: string; signupCode?: string; turnstile?: string }) => post('/auth/signup', '', body) as Promise<SignedIn>,
   claim: (passcode: string, body: { email: string; password: string; name: string }) => post('/account/claim', passcode, body) as Promise<SignedIn>,
+  config: async (): Promise<{ turnstile: string | null; signup: boolean; email: boolean }> => {
+    try {
+      const r = await fetch(`${WORKER}/config`);
+      return r.ok ? await r.json() : { turnstile: null, signup: false, email: false };
+    } catch { return { turnstile: null, signup: false, email: false }; }
+  },
+  forgot: (email: string, turnstile?: string) => post('/auth/forgot', '', { email, turnstile }) as Promise<{ emailed: boolean }>,
+  reset: (body: { token?: string; code?: string; email?: string; password: string }) => post('/auth/reset', '', body) as Promise<SignedIn>,
+  resetCode: (credential: string, email: string) => post('/account/reset-code', credential, { email }) as Promise<{ code: string; expires: string }>,
   invite: (credential: string) => post('/account/invite', credential) as Promise<{ code: string; expires: string }>,
   changePassword: (credential: string, current: string, next: string) => post('/account/password', credential, { current, next }) as Promise<{ token: string }>,
   signOutEverywhere: (credential: string) => post('/account/signout-everywhere', credential),

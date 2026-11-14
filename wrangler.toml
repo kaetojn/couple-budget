@@ -1,0 +1,11 @@
+# Deploys worker/worker.js to the existing "couple-budget" Worker (see .github/workflows/worker.yml).
+# Secrets and variables set in the Cloudflare dashboard are left as they are.
+name = "couple-budget"
+main = "worker/worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+keep_vars = true
+
+[[kv_namespaces]]
+binding = "DB"
+id = "d46c4ee6aefa4ac7b0bf088f5a179499"

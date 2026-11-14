@@ -1,0 +1,22 @@
+name: Deploy Worker
+
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', 'wrangler.toml', '.github/workflows/worker.yml']
+  workflow_dispatch:
+
+concurrency: worker
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the Worker parses
+        run: node --check worker/worker.js
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

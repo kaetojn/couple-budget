@@ -43,3 +43,20 @@ export function sheetRows(doc: Doc, month: string) {
   for (const t of tx) rows.push([t.date, t.desc, t.amount, t.category, who(doc, t.owner), who(doc, t.paidBy), t.source, t.exclude ? 'no' : 'yes']);
   return { tabName: monthLabel(month), rows: rows.map(row => row.map(safe)), boldRows };
 }
+
+const cell = (v: unknown) => {
+  const t = v == null ? '' : String(v);
+  return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
+
+/** The same summary as the Google Sheet tab, as a CSV file any spreadsheet app opens. */
+export function downloadCsv(doc: Doc, month: string) {
+  const { rows } = sheetRows(doc, month);
+  const text = '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `couple-budget-${month}.csv` });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

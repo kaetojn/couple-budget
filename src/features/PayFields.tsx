@@ -13,6 +13,7 @@ import { applySplit, payOf, perCheque } from '@/lib/plan';
 import { docAtom, updateDoc } from '@/lib/store';
 import { isSupported, REGIONS, takeHome, TAX_YEAR } from '@/lib/tax';
 import type { OtherIncome, Owner, PayFreq, PaySchedule, PersonId } from '@/lib/types';
+import type { Region } from '@/lib/tax';
 
 export const freqOptions = (Object.keys(FREQS) as PayFreq[]).map(value => ({ value, label: FREQS[value] }));
 
@@ -69,36 +70,48 @@ export function IncomeField({ person }: { person: PersonId }) {
   const s = doc.settings;
   const supported = isSupported(s.region);
   const gross = s.pay[person].gross ?? 0;
-  const [mode, setMode] = useState<'salary' | 'net'>(supported && (gross > 0 || !payOf(doc, person)) ? 'salary' : 'net');
+  // Typing take-home is the default; the salary estimate is optional.
+  const [estimating, setEstimating] = useState(gross > 0);
   const [open, setOpen] = useState(false);
   const income = payOf(doc, person);
-  const est = supported ? takeHome(gross, s.region) : null;
+  const est = supported && gross > 0 ? takeHome(gross, s.region) : null;
   const key = person === 'p1' ? 'inc1' : 'inc2';
   const region = REGIONS.find(r => r.value === s.region)?.label ?? s.region;
   const setIncome = (v: number) => updateDoc(d => { d.settings = applySplit({ ...d.settings, [key]: v }); });
 
-  function setGross(g: number) {
-    const t = takeHome(g, s.region);
+  function setGross(g: number, r = s.region) {
+    const t = takeHome(g, r);
     updateDoc(d => {
+      d.settings.region = r;
       d.settings.pay[person] = { ...d.settings.pay[person], gross: g || undefined };
       if (t) d.settings = applySplit({ ...d.settings, [key]: t.monthly });
     });
   }
+  function stop() {
+    setEstimating(false);
+    updateDoc(d => { d.settings.pay[person] = { ...d.settings.pay[person], gross: undefined }; });
+  }
 
   return (
     <div className="grid gap-3 rounded-2xl bg-canvas p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold">{who(doc, person)}</span>
-        {supported && <Segmented size="sm" className="w-full sm:w-64" value={mode} onChange={m => { setMode(m); if (m === 'net') updateDoc(d => { d.settings.pay[person] = { ...d.settings.pay[person], gross: undefined }; }); }} options={[{ value: 'salary', label: 'From salary' }, { value: 'net', label: 'Take-home' }]} />}
-      </div>
-      {mode === 'salary' && supported ? (
-        <>
-          <Field label="Salary before tax, per year"><MoneyInput label={`${who(doc, person)} yearly salary`} value={gross} onChange={setGross} step={1000} /></Field>
+      <span className="font-semibold">{who(doc, person)}</span>
+      <Field label="Take-home a month" hint={est ? (Math.abs(income - est.monthly) > 1 ? <>Adjusted from the estimate of {money0(est.monthly)}.</> : 'Estimated from salary. Change it if your pay stub differs.') : 'What lands in your account after tax.'}>
+        <MoneyInput label={`${who(doc, person)} monthly take-home`} value={income} onChange={setIncome} step={50} />
+      </Field>
+      {!estimating ? (
+        <button type="button" onClick={() => setEstimating(true)} className="justify-self-start text-[13px] font-semibold text-brand">Not sure? Estimate it from salary</button>
+      ) : (
+        <div className="grid animate-rise gap-3 rounded-xl border border-line p-3">
+          <Field label="Province">
+            <Select<Region> value={s.region} onChange={r => setGross(gross, r)} options={REGIONS.map(r => ({ value: r.value, label: r.label, hint: r.supported ? undefined : 'Estimates coming later' }))} />
+          </Field>
+          {supported ? (
+            <Field label="Salary before tax, per year"><MoneyInput label={`${who(doc, person)} yearly salary`} value={gross} onChange={g => setGross(g)} step={1000} /></Field>
+          ) : (
+            <p className="text-[13px] text-muted">Estimates are not available for {region} yet. Enter your take-home above.</p>
+          )}
           {est && (
             <>
-              <Field label="Take-home a month" hint={Math.abs(income - est.monthly) > 1 ? <>Adjusted from the estimate of {money0(est.monthly)}.</> : 'Estimated. Change it if your pay stub differs.'}>
-                <MoneyInput label={`${who(doc, person)} monthly take-home`} value={income} onChange={setIncome} step={50} />
-              </Field>
               <button type="button" onClick={() => setOpen(o => !o)} className="flex items-center gap-1 justify-self-start text-[13px] font-semibold text-brand">
                 How this is worked out <LuChevronDown className={cn('transition', open && 'rotate-180')} aria-hidden />
               </button>
@@ -116,11 +129,8 @@ export function IncomeField({ person }: { person: PersonId }) {
               )}
             </>
           )}
-        </>
-      ) : (
-        <Field label="Take-home a month" hint={supported ? undefined : `Take-home estimates are not available for ${region} yet, so enter what lands in your account.`}>
-          <MoneyInput label={`${who(doc, person)} monthly take-home`} value={income} onChange={setIncome} step={100} />
-        </Field>
+          <button type="button" onClick={stop} className="justify-self-start text-[13px] font-semibold text-muted">Hide the estimate</button>
+        </div>
       )}
     </div>
   );

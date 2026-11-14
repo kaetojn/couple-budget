@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from 'jotai';
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { LuFiles, LuArrowLeftRight, LuArrowRight, LuChevronDown, LuChevronRight, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
+import { LuFiles, LuArrowLeftRight, LuArrowRight, LuChevronDown, LuChevronRight, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuDownload, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
@@ -22,7 +22,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { catOf, merchantKey, ownerFor, spendByDay, who } from '@/lib/compute';
 import { dayLabel, dayOf, money, money0, monthKey, monthLabel, parseMonth } from '@/lib/format';
-import { sheetRows } from '@/lib/export';
+import { downloadCsv, sheetRows } from '@/lib/export';
 import { useLast } from '@/lib/hooks';
 import { accountAtom, docAtom, importAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
 import type { Category, Doc, Owner, Payer, Tx } from '@/lib/types';
@@ -91,7 +91,14 @@ export function Month({ go }: { go: Go }) {
   const narrowed = day !== null || owner !== 'all' || search.trim() !== '';
   const clearFilters = () => { setDay(null); setOwner('all'); setQuery(''); };
 
+  const [exportOpen, setExportOpen] = useState(false);
+  function exportCsv() {
+    downloadCsv(doc, month);
+    setExportOpen(false);
+    toast(`Downloaded ${monthLabel(month)} as a CSV file`);
+  }
   async function exportSheet() {
+    setExportOpen(false);
     setExporting(true);
     try {
       const res = await api.sheet(passcode, sheetRows(doc, month));
@@ -108,7 +115,7 @@ export function Month({ go }: { go: Go }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <MonthSwitcher />
         <div className="flex w-full gap-2 sm:w-auto">
-          {tx.length > 0 && !demo && account?.sheets !== false && <Button onClick={exportSheet} busy={exporting} aria-label="Export to Google Sheets" className="shrink-0"><LuSheet /><span className="hidden sm:inline">Export</span></Button>}
+          {tx.length > 0 && <Button onClick={() => (!demo && account?.sheets ? setExportOpen(true) : exportCsv())} busy={exporting} aria-label="Export this month" className="shrink-0"><LuDownload /><span className="hidden sm:inline">Export</span></Button>}
           {tx.length > 0 && !demo && (
             <Button onClick={() => setManaging(true)} className="relative flex-1 whitespace-nowrap sm:flex-none">
               <LuFiles /><span className="sm:hidden">Statements</span><span className="hidden sm:inline">Manage statements</span>
@@ -169,6 +176,13 @@ export function Month({ go }: { go: Go }) {
         )}
       </div>
 
+      <Sheet open={exportOpen} onClose={() => setExportOpen(false)} title={`Export ${monthLabel(month)}`}>
+        <div className="grid gap-2">
+          <Button onClick={exportSheet}><LuSheet />Add a tab to our Google Sheet</Button>
+          <Button onClick={exportCsv}><LuDownload />Download a CSV file</Button>
+          <p className="text-[13px] text-muted">A CSV opens in Excel, Numbers or Google Sheets.</p>
+        </div>
+      </Sheet>
       <Sheet open={managing} onClose={() => setManaging(false)} title={`Statements, ${monthLabel(month)}`}>
         <Statements month={month} />
       </Sheet>

@@ -13,12 +13,11 @@ import { cn } from '@/lib/cn';
 import { ARRANGEMENTS, METHODS } from '@/lib/defaults';
 import { money, money0, monthLabel, pct } from '@/lib/format';
 import { allocation, applySplit, billPayment, breakdownAdvice, planOf, splitText } from '@/lib/plan';
-import { isSupported, REGIONS, TAX_YEAR, type Region } from '@/lib/tax';
 import { IncomeField, OtherIncomeEditor, PaySchedulePicker } from './PayFields';
 import { docAtom, importAtom, monthAtom, store, toast, updateDoc } from '@/lib/store';
 import type { Arrangement, PersonId, Settings, SplitMethod } from '@/lib/types';
 
-type Step = 'names' | 'setup' | 'where' | 'income' | 'pay' | 'split' | 'plan' | 'done';
+type Step = 'names' | 'setup' | 'income' | 'pay' | 'split' | 'plan' | 'done';
 const options = <T extends string>(o: Record<T, string | { label: string; hint: string }>) =>
   (Object.entries(o) as [T, string | { label: string; hint: string }][]).map(([value, v]) => (typeof v === 'string' ? { value, label: v } : { value, label: v.label, hint: v.hint }));
 
@@ -30,7 +29,7 @@ export function Onboarding({ go }: { go: Go }) {
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
   const [error, setError] = useState('');
-  const steps: Step[] = ['names', 'setup', 'where', 'income', 'pay', ...(s.arrangement === 'joint' ? [] : (['split'] as Step[])), 'plan', 'done'];
+  const steps: Step[] = ['names', 'setup', 'income', 'pay', ...(s.arrangement === 'joint' ? [] : (['split'] as Step[])), 'plan', 'done'];
   const step = steps[Math.min(index, steps.length - 1)];
   const set = (patch: Partial<Settings>) => updateDoc(d => { d.settings = applySplit({ ...d.settings, ...patch }); });
   const n1 = s.p1 || 'First partner';
@@ -90,13 +89,6 @@ export function Onboarding({ go }: { go: Go }) {
         <Head title={`How do ${n1} and ${n2} manage money?`} text="This decides how shared costs are checked and how advice is worded." />
         <Select<Arrangement> value={s.arrangement} onChange={arrangement => set({ arrangement })} options={options(ARRANGEMENTS)} />
         <p key={s.arrangement} className="animate-rise text-muted">{ARRANGEMENTS[s.arrangement].hint}</p>
-      </>
-    ),
-    where: (
-      <>
-        <Head title="Where do you live?" text="Used to estimate take-home pay from a salary. You can always type take-home in yourself." />
-        <Select<Region> value={s.region} onChange={region => set({ region })} options={REGIONS.map(r => ({ value: r.value, label: r.label, hint: r.supported ? `Take-home estimates for ${TAX_YEAR}` : 'Take-home estimates coming later' }))} />
-        <p key={s.region} className="animate-rise text-muted">{isSupported(s.region) ? 'Next, enter each salary and the app works out federal and provincial tax, CPP and EI.' : 'Estimates are not available here yet. Next, enter what each of you takes home a month.'}</p>
       </>
     ),
     income: (

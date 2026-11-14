@@ -58,6 +58,9 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 let retry: ReturnType<typeof setTimeout> | undefined;
 
+/** What the cloud was last sent, so an unchanged document is not sent again. */
+let lastSent = '';
+
 async function push() {
   const { passcode, demo } = store.get(sessionAtom);
   if (!synced || !passcode || demo) return;
@@ -65,17 +68,24 @@ async function push() {
   clearTimeout(retry);
   timer = undefined;
   const doc = store.get(docAtom);
+  const body = JSON.stringify(doc);
+  // The free plan allows 1,000 saves a day across the account, so skip saves that change nothing.
+  if (body === lastSent) { setDirty(false); patchSession({ sync: 'saved' }); return; }
   try {
     await api.save(passcode, doc);
+    lastSent = body;
     // Only clear the flag if nothing changed while the save was in flight.
     if (store.get(docAtom) === doc) { setDirty(false); patchSession({ sync: 'saved' }); }
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) return lock();
     patchSession({ sync: 'local' });
-    // Keep trying quietly; the change is safe on this device in the meantime.
-    retry = setTimeout(() => void push(), 15000);
+    // The daily limit will not lift for hours; otherwise keep trying quietly. Changes are safe on this device.
+    const limited = e instanceof ApiError && e.status === 503;
+    if (limited && !limitShown) { limitShown = true; toast((e as Error).message); }
+    retry = setTimeout(() => void push(), limited ? 30 * 60 * 1000 : 15000);
   }
 }
+let limitShown = false;
 
 /** Sends any waiting change now, for when the app is being closed or hidden. */
 export function flush() {
@@ -94,7 +104,8 @@ function persist(doc: Doc) {
   if (!synced) return;
   patchSession({ sync: 'saving' });
   clearTimeout(timer);
-  timer = setTimeout(() => void push(), 800);
+  // Edits made close together go out as one save.
+  timer = setTimeout(() => void push(), 2500);
 }
 
 /** The one way to change data: mutate a copy, then it is saved locally and synced. */
@@ -131,6 +142,7 @@ export async function pull(quiet = false) {
       if (quiet && remote.updatedAt === local.updatedAt) return void patchSession({ sync: 'saved' });
       store.set(docAtom, remote);
       if (!quiet) store.set(monthAtom, latestMonth(remote));
+      lastSent = JSON.stringify(remote);
       try { localStorage.setItem(DOC_KEY, JSON.stringify(remote)); } catch { /* ignore */ }
       setDirty(false);
       patchSession({ sync: 'saved' });

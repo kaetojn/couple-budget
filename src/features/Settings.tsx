@@ -12,7 +12,6 @@ import { ARRANGEMENTS, migrate } from '@/lib/defaults';
 import { pct } from '@/lib/format';
 import { applySplit } from '@/lib/plan';
 import { docAtom, eraseDevice, lock, sessionAtom, toast, updateDoc } from '@/lib/store';
-import { REGIONS, type Region } from '@/lib/tax';
 import type { Arrangement, Settings as SettingsType, SplitMethod } from '@/lib/types';
 import { IncomeField, OtherIncomeEditor } from './PayFields';
 import { newerAvailable, reloadApp, versionLabel } from '@/lib/update';
@@ -75,11 +74,8 @@ export function Settings(_: { go: Go }) {
           <div className="grid gap-3 sm:grid-cols-2">
             {(['p1', 'p2'] as const).map(p => <Field key={p} label={p === 'p1' ? 'First partner' : 'Second partner'}><TextInput value={s[p]} onChange={e => set({ [p]: e.target.value })} /></Field>)}
           </div>
-          <Field label="Where you live" hint="Used to estimate take-home pay from a salary.">
-            <Select<Region> value={s.region} onChange={region => set({ region })} options={REGIONS.map(r => ({ value: r.value, label: r.label, hint: r.supported ? undefined : 'Take-home estimates coming later' }))} />
-          </Field>
           <div className="grid gap-3 md:grid-cols-2">
-            {(['p1', 'p2'] as const).map(p => <IncomeField key={`${p}-${s.region}`} person={p} />)}
+            {(['p1', 'p2'] as const).map(p => <IncomeField key={p} person={p} />)}
           </div>
           <OtherIncomeEditor />
         </Card>

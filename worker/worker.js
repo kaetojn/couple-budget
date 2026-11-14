@@ -13,6 +13,11 @@
 //   SHEET_URL          the Apps Script web app URL, ending in /exec (Google Sheets export, original household only)
 //   SHEET_TOKEN        the TOKEN value on the first line of the Apps Script
 //   MARKET_API_KEY     optional. A free Alpha Vantage key (alphavantage.co) for daily investment prices.
+//   TURNSTILE_SECRET   optional. With TURNSTILE_SITE_KEY (a plain variable), adds Cloudflare's bot check to sign-up and password reset.
+//   RESEND_API_KEY     optional. With MAIL_FROM (e.g. "Couple Budget <hello@yourdomain.ca>"), sends password-reset emails.
+//                      Resend's free plan only delivers to your own address until you verify a domain you own.
+//   APP_URL            optional. The app's address for links in emails; defaults to https://kaetojn.github.io/couple-budget/
+//   CLAUDE_DAILY_LIMIT optional. Claude requests a day for each household other than the original one (default 60).
 //   SIGNUP_CODE        optional. New households can only be created with this code. Leave it unset to keep sign-ups closed.
 // Binding to add: a KV namespace with the variable name DB.
 
@@ -112,6 +117,49 @@ async function guard(env, request, ok) {
   return ok;
 }
 
+/** Cloudflare Turnstile bot check. Skipped when no secret is set. */
+async function human(env, request, token) {
+  if (!env.TURNSTILE_SECRET) return;
+  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET, response: String(token || ''), remoteip: request.headers.get('cf-connecting-ip') || '' });
+  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body }).then(x => x.json()).catch(() => ({}));
+  if (!r.success) throw new HttpError(403, 'Please complete the check that you are not a robot, then try again.');
+}
+
+/** Sends an email through Resend. Returns false when email is not set up. */
+async function sendEmail(env, to, subject, text) {
+  if (!env.RESEND_API_KEY || !env.MAIL_FROM) return false;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text }),
+  });
+  return res.ok;
+}
+
+/**
+ * A daily cap on Claude requests for each household, so a few households cannot run up the bill.
+ * The original household is not capped. Counting costs one KV write per request.
+ */
+async function claudeQuota(env, hh) {
+  if (hh === LEGACY) return;
+  const limit = +env.CLAUDE_DAILY_LIMIT || 60;
+  const key = `use:${hh}:${new Date().toISOString().slice(0, 10)}`;
+  const used = +(await env.DB.get(key)) || 0;
+  if (used >= limit) throw new HttpError(429, `Your household has used today's ${limit} Claude requests. It resets at midnight UTC (7 pm Toronto time, 8 pm in summer).`);
+  await env.DB.put(key, String(used + 1), { expirationTtl: 2 * DAY });
+}
+
+/** KV writes fail once the free plan's daily limit is used up; say so plainly. */
+async function put(env, key, value, opts) {
+  try { await env.DB.put(key, value, opts); }
+  catch (e) {
+    if (/limit|quota|429/i.test(String(e?.message))) throw new HttpError(503, 'The free plan\'s daily save limit is used up. Your changes are kept on this device and will save after midnight UTC (7 pm Toronto time, 8 pm in summer).');
+    throw e;
+  }
+}
+
+const resetCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+
 const emailKey = email => `user:${String(email || '').trim().toLowerCase()}`;
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
 
@@ -181,13 +229,19 @@ async function app(request, env, url) {
   const cors = {
     'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'content-type, x-app-passcode, authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   try {
     if (!allowed) throw new HttpError(403, 'This site is not allowed to use the Worker');
+    if (url.pathname === '/config') {
+      // Public settings the sign-in screen needs before anyone is signed in.
+      const res = jsonResponse(200, { ok: true, turnstile: env.TURNSTILE_SECRET && env.TURNSTILE_SITE_KEY ? env.TURNSTILE_SITE_KEY : null, signup: !!env.SIGNUP_CODE, email: !!(env.RESEND_API_KEY && env.MAIL_FROM) });
+      for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
+      return res;
+    }
     if (request.method !== 'POST') throw new HttpError(405, 'POST only');
     if (!env.DB) throw new HttpError(500, 'The KV binding named DB is not set on the Worker');
     const res = await route(request, env, url.pathname);
@@ -209,8 +263,46 @@ async function route(request, env, path) {
     const user = await checkPassword(env, request, email, password);
     return ok({ token: await sessionFor(env, user), user: publicUser(user) });
   }
+  if (path === '/auth/forgot') {
+    // Always answers the same way, so this cannot be used to find out who has an account.
+    const { email, turnstile } = await readJson(request);
+    await human(env, request, turnstile);
+    const user = validEmail(email) ? await getUser(env, email) : null;
+    if (user) {
+      const token = await sign(env, { typ: 'reset', em: user.email, v: user.v, exp: now() + 3600 });
+      const link = `${env.APP_URL || 'https://kaetojn.github.io/couple-budget/'}#/reset?token=${encodeURIComponent(token)}`;
+      await sendEmail(env, user.email, 'Reset your Couple Budget password', `Hi${user.name ? ` ${user.name}` : ''},\n\nUse this link within an hour to choose a new password:\n${link}\n\nIf you did not ask for this, you can ignore this email.`);
+    }
+    return ok({ emailed: !!(env.RESEND_API_KEY && env.MAIL_FROM) });
+  }
+
+  if (path === '/auth/reset') {
+    const { token, code, email, password } = await readJson(request);
+    if (String(password || '').length < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+    let user = null;
+    if (token) {
+      const p = await verify(env, token, 'reset');
+      user = p ? await getUser(env, p.em) : null;
+      if (!user || user.v !== p.v) throw new HttpError(400, 'This reset link has expired or was already used. Ask for a new one.');
+    } else {
+      const key = `reset:${String(code || '').trim().toUpperCase()}`;
+      const r = await env.DB.get(key, 'json');
+      const ok = !!r && r.em === String(email || '').trim().toLowerCase();
+      await guard(env, request, ok);
+      if (!ok) throw new HttpError(400, 'That reset code is not valid for this email. Ask your partner for a new one.');
+      user = await getUser(env, r.em);
+      await env.DB.delete(key);
+    }
+    user.salt = randomId(12);
+    user.hash = await hashPassword(password, user.salt);
+    user.v += 1;
+    await put(env, emailKey(user.email), JSON.stringify(user));
+    return ok({ token: await sessionFor(env, user), user: publicUser(user) });
+  }
+
   if (path === '/auth/signup') {
     const body = await readJson(request);
+    await human(env, request, body.turnstile);
     let household;
     if (body.invite) {
       household = await env.DB.get(`invite:${String(body.invite).trim().toUpperCase()}`);
@@ -240,7 +332,10 @@ async function route(request, env, path) {
     // Keep any section the saved copy has but this save leaves out, so an old phone cannot erase it.
     const prev = await env.DB.get(dataKey(who.hh), 'json');
     if (prev && typeof prev === 'object') for (const k of Object.keys(prev)) if (!(k in body.data)) body.data[k] = prev[k];
-    await env.DB.put(dataKey(who.hh), JSON.stringify(body.data));
+    const next = JSON.stringify(body.data);
+    // The free plan allows 1,000 writes a day across the account, so an unchanged save is not written.
+    if (prev && JSON.stringify(prev) === next) return ok({ unchanged: true });
+    await put(env, dataKey(who.hh), next);
     return ok({});
   }
 
@@ -259,6 +354,17 @@ async function route(request, env, path) {
     await env.DB.put(`invite:${code}`, who.hh, { expirationTtl: 7 * DAY });
     await env.DB.put(`meta:${who.hh}`, JSON.stringify(meta));
     return ok({ code, expires: '7 days' });
+  }
+
+  if (path === '/account/reset-code') {
+    // A partner who is signed in can let the other back in if they forgot their password.
+    const { email } = await readJson(request);
+    const target = validEmail(email) ? await getUser(env, email) : null;
+    if (!target || target.household !== who.hh) throw new HttpError(400, 'That email is not a member of your household.');
+    if (who.user && target.email === who.user.email) throw new HttpError(400, 'Use Change password for your own account.');
+    const code = resetCode();
+    await put(env, `reset:${code}`, JSON.stringify({ em: target.email }), { expirationTtl: DAY });
+    return ok({ code, expires: '24 hours' });
   }
 
   if (path === '/account/signout-everywhere') {
@@ -295,6 +401,7 @@ async function route(request, env, path) {
 
   if (path === '/claude' || path === '/') {
     if (!env.ANTHROPIC_API_KEY) throw new HttpError(500, 'The ANTHROPIC_API_KEY secret is not set on the Worker');
+    await claudeQuota(env, who.hh);
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
