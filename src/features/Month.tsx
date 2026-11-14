@@ -1,18 +1,20 @@
 import { useAtom, useAtomValue } from 'jotai';
-import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
-import { LuArrowRight, LuChevronDown, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { LuArrowLeftRight, LuArrowRight, LuChevronDown, LuChevronRight, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
 import { CategoryPicker, MonthSwitcher } from '@/components/pickers';
 import { Button } from '@/components/ui/button';
 import { Card, Empty, Field, SectionTitle } from '@/components/ui/card';
-import { Segmented, Switch, TextInput } from '@/components/ui/controls';
+import { Segmented, Select, Switch, TextInput } from '@/components/ui/controls';
 import { Avatar, Count, PERSON_COLOR, useName, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
 import { extractStatement, isImage, type StatementAccount } from '@/lib/ai';
 import { upsertAccount } from '@/lib/accounts';
 import { coverage, detectRecurring, fileByDate } from '@/lib/detect';
+import { reconcileTransfers, rememberPayee, transferSummary } from '@/lib/transfers';
+import { accountLabel } from '@/lib/accounts';
 import { PayPrompts } from './Findings';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -122,6 +124,7 @@ export function Month({ go }: { go: Go }) {
         ) : (
           <>
             <Summary month={month} totals={totals} day={day} owner={owner} search={search.trim()} narrowed={narrowed} onClear={clearFilters} />
+            <TransfersLine month={month} />
             <Calendar doc={doc} tx={tx} month={month} day={day} onDay={setDay} />
 
             <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -425,6 +428,7 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
       }
       if (accounts.some(a => a.account?.balance !== undefined)) snapshotNetWorth(d);
       filed = fileByDate(d, found, target);
+      reconcileTransfers(d);
     });
     const months = Object.entries(filed).filter(([, v]) => v.added > 0);
     const skipped = Object.values(filed).reduce((n, v) => n + v.skipped, 0);
@@ -532,5 +536,103 @@ function Statements({ month }: { month: string }) {
       </Card>
       <p className="mt-2 text-[13px] text-muted">Removing a statement deletes all of its transactions, in every month it covers. Upload it again any time.</p>
     </section>
+  );
+}
+
+/** One line on what was left out of spending as transfers, opening the matched pairs and anything to check. */
+function TransfersLine({ month }: { month: string }) {
+  const doc = useAtomValue(docAtom);
+  const [open, setOpen] = useState(false);
+  const s = useMemo(() => transferSummary(doc, month), [doc, month]);
+  // Statements added through Claude skip the import step, so match their transfers here too.
+  useEffect(() => {
+    if (reconcileTransfers(structuredClone(doc)) > 0) updateDoc(d => { reconcileTransfers(d); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
+  if (!s.count) return null;
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className={cn('flex items-center gap-3 rounded-2xl p-3 text-left text-sm transition', s.toCheck.length ? 'bg-warn/10 hover:bg-warn/15' : 'bg-canvas hover:bg-line/60')}>
+        <LuArrowLeftRight className={cn('shrink-0 text-lg', s.toCheck.length ? 'text-warn' : 'text-muted')} aria-hidden />
+        <span className="flex-1"><strong className="num">{money0(s.excluded)}</strong> in transfers left out of spending · {s.pairs.length} matched{s.toCheck.length ? <> · <strong>{s.toCheck.length} to check</strong></> : ''}</span>
+        <LuChevronRight className="shrink-0 text-muted" aria-hidden />
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Transfers">
+        <TransfersBody month={month} />
+      </Sheet>
+    </>
+  );
+}
+
+function TransfersBody({ month }: { month: string }) {
+  const doc = useAtomValue(docAtom);
+  const s = transferSummary(doc, month);
+  const where = (t: Tx) => {
+    const acc = t.account ? doc.accounts.find(a => a.id === t.account) : undefined;
+    return acc ? accountLabel(acc) : `${who(doc, t.paidBy)}, ${t.source}`;
+  };
+  return (
+    <>
+      <p className="text-muted">Card payments and moves between your own accounts are not spending, so they are left out of totals. When both sides are uploaded, they are matched by amount and date.</p>
+      {s.toCheck.length > 0 && (
+        <section className="grid gap-3">
+          <h3 className="font-bold">Check these</h3>
+          <p className="text-[13px] text-muted">These were labelled as transfers, but there is no matching deposit in your other accounts. An e-transfer can be rent or paying someone back, which is spending.</p>
+          {s.toCheck.map(t => <CheckTransfer key={t.id} t={t} month={month} />)}
+        </section>
+      )}
+      {s.pairs.length > 0 && (
+        <section className="grid gap-2">
+          <h3 className="font-bold">Matched</h3>
+          {s.pairs.map(p => (
+            <div key={p.out.id} className="grid gap-1 rounded-2xl bg-canvas p-3 text-sm">
+              <div className="flex items-center justify-between gap-2"><span className="num font-semibold">{money(p.out.amount)}</span><span className="text-[13px] text-muted">{dayLabel(p.out.date)}</span></div>
+              <p className="flex min-w-0 items-center gap-1.5"><Avatar id={p.out.paidBy} size={16} /><span className="truncate">{where(p.out)}</span><LuArrowRight className="shrink-0 text-muted" aria-hidden /><Avatar id={p.in.paidBy} size={16} /><span className="truncate">{where(p.in)}</span></p>
+              <p className="truncate text-[13px] text-muted">{p.out.desc} · {p.in.desc}{p.in.category !== 'Transfer' ? ` · ${p.in.category}` : ''}</p>
+            </div>
+          ))}
+        </section>
+      )}
+      {!s.toCheck.length && !s.pairs.length && <p className="text-sm text-muted">Transfers this month have no other side uploaded, which is normal when you have not added that account's statement.</p>}
+    </>
+  );
+}
+
+function CheckTransfer({ t, month }: { t: Tx; month: string }) {
+  const doc = useAtomValue(docAtom);
+  const [spend, setSpend] = useState(false);
+  const [category, setCategory] = useState(doc.categories.find(c => /rent/i.test(c.name))?.name ?? 'Other');
+  const [remember, setRemember] = useState(true);
+  const expense = doc.categories.filter(c => c.kind === 'expense').map(c => ({ value: c.name, label: c.name }));
+  const answer = (cat: string | null) => {
+    updateDoc(d => {
+      const x = d.months[month]?.tx.find(y => y.id === t.id);
+      if (!x) return;
+      if (cat) { x.category = cat; x.owner = ownerFor(catOf(d, cat), x.paidBy); }
+      x.ok = true;
+      if (remember) rememberPayee(d, x, cat ?? x.category);
+    });
+    toast(cat ? `Counted as ${cat}` : 'Kept as a transfer');
+  };
+  return (
+    <div className="grid gap-3 rounded-2xl border border-line p-3">
+      <div className="flex items-center gap-3">
+        <Avatar id={t.paidBy} size={28} />
+        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{t.desc}</p><p className="text-[13px] text-muted">{dayLabel(t.date)}</p></div>
+        <span className="num font-semibold">{money(Math.abs(t.amount))}</span>
+      </div>
+      {spend ? (
+        <div className="grid gap-2">
+          <Field label="What was it for?"><Select value={category} onChange={setCategory} options={expense} /></Field>
+          <div className="flex flex-wrap gap-2"><Button size="sm" variant="primary" onClick={() => answer(category)}>Count as {category}</Button><Button size="sm" variant="ghost" onClick={() => setSpend(false)}>Back</Button></div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="soft" onClick={() => setSpend(true)}>It was spending</Button>
+          <Button size="sm" variant="soft" onClick={() => answer(null)}>Our money moving</Button>
+        </div>
+      )}
+      <label className="flex items-center gap-2 text-[13px] text-muted"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="size-4 accent-[var(--color-brand)]" />Do the same for this payee next time</label>
+    </div>
   );
 }
