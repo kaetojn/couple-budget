@@ -22,6 +22,16 @@ export function Settings(_: { go: Go }) {
   const { demo } = useAtomValue(sessionAtom);
   const s = doc.settings;
   const [sure, setSure] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const statementMonths = Object.values(doc.months).filter(m => m?.tx?.length).length;
+  const statementCount = Object.values(doc.months).reduce((n, m) => n + (m?.tx?.length ?? 0), 0);
+  function clearStatements() {
+    if (!clearing) return setClearing(true);
+    const before = doc.months;
+    updateDoc(d => { d.months = {}; });
+    setClearing(false);
+    toast('All statements cleared', { label: 'Undo', run: () => updateDoc(d => { d.months = before; }) });
+  }
   const fileRef = useRef<HTMLInputElement>(null);
   const set = (patch: Partial<SettingsType>) => updateDoc(d => { d.settings = applySplit({ ...d.settings, ...patch }); });
 
@@ -107,6 +117,12 @@ export function Settings(_: { go: Go }) {
             <Button onClick={() => fileRef.current?.click()} disabled={demo}><LuUpload />Restore from backup</Button>
             <input ref={fileRef} type="file" accept=".json" className="sr-only" onChange={e => { void restore(e.target.files?.[0]); e.target.value = ''; }} />
           </div>
+          {statementCount > 0 && !demo && (
+            <div className="grid gap-2 border-t border-line pt-3">
+              <p className="text-sm text-muted">{statementCount} transactions from uploaded statements across {statementMonths} month{statementMonths > 1 ? 's' : ''}. Clearing them keeps your setup, budgets, bills and accounts.</p>
+              <Button variant={clearing ? 'danger' : 'secondary'} className="justify-self-start" onClick={clearStatements}><LuTrash2 />{clearing ? 'Tap again to clear every statement' : 'Clear all statements'}</Button>
+            </div>
+          )}
         </Card>
       </section>
 

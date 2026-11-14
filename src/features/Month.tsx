@@ -6,7 +6,7 @@ import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
 import { CategoryPicker, MonthSwitcher } from '@/components/pickers';
 import { Button } from '@/components/ui/button';
-import { Card, Empty, Field } from '@/components/ui/card';
+import { Card, Empty, Field, SectionTitle } from '@/components/ui/card';
 import { Segmented, Switch, TextInput } from '@/components/ui/controls';
 import { Avatar, Count, PERSON_COLOR, useName, useOwnerOptions } from '@/components/ui/misc';
 import { Sheet } from '@/components/ui/sheet';
@@ -155,6 +155,8 @@ export function Month({ go }: { go: Go }) {
           </>
         )}
       </div>
+
+      {tx.length > 0 && !demo && <Statements month={month} />}
 
       <Sheet open={!!editing} onClose={() => setEditing(null)} title="Transaction">
         {shown && <TxEditor key={shown.id} tx={shown} month={month} onDone={() => setEditing(null)} />}
@@ -471,5 +473,48 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
         </ul>
       )}
     </Sheet>
+  );
+}
+
+/** The statements and screenshot batches uploaded for a month, each removable, with Undo. */
+function Statements({ month }: { month: string }) {
+  const doc = useAtomValue(docAtom);
+  const [sure, setSure] = useState(false);
+  const tx = doc.months[month]?.tx ?? [];
+  const sources = [...tx.reduce((m, t) => {
+    const g = m.get(t.source) ?? { source: t.source, count: 0, out: 0, payers: new Set<Payer>() };
+    g.count++;
+    if (t.amount > 0) g.out += t.amount;
+    g.payers.add(t.paidBy);
+    return m.set(t.source, g);
+  }, new Map<string, { source: string; count: number; out: number; payers: Set<Payer> }>()).values()];
+
+  function remove(which: (t: Tx) => boolean, message: string) {
+    const removed = (doc.months[month]?.tx ?? []).filter(which);
+    updateDoc(d => { d.months[month] = { ...d.months[month], tx: (d.months[month]?.tx ?? []).filter(t => !which(t)) }; });
+    setSure(false);
+    toast(message, {
+      label: 'Undo',
+      run: () => updateDoc(d => { d.months[month] = { ...d.months[month], tx: [...(d.months[month]?.tx ?? []), ...removed].sort((a, b) => a.date.localeCompare(b.date)) }; }),
+    });
+  }
+
+  return (
+    <section>
+      <SectionTitle action={<Button size="sm" variant={sure ? 'danger' : 'ghost'} onClick={() => (sure ? remove(() => true, `Cleared ${monthLabel(month)}`) : setSure(true))}><LuTrash2 />{sure ? 'Tap again to clear the month' : 'Clear month'}</Button>}>Uploaded statements</SectionTitle>
+      <Card className="divide-y divide-line p-0">
+        {sources.map(g => (
+          <div key={g.source} className="flex items-center gap-3 px-4 py-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-lg text-muted">{/^Screenshots/.test(g.source) ? <LuImage aria-hidden /> : <LuFileText aria-hidden />}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{g.source}</p>
+              <p className="flex items-center gap-1.5 text-[13px] text-muted">{[...g.payers].map(p => <Avatar key={p} id={p} size={16} />)}{g.count} transaction{g.count > 1 ? 's' : ''} · {money0(g.out)} out</p>
+            </div>
+            <Button size="icon" variant="ghost" className="size-9" aria-label={`Remove ${g.source}`} onClick={() => remove(t => t.source === g.source, `Removed ${g.source}`)}><LuTrash2 /></Button>
+          </div>
+        ))}
+      </Card>
+      <p className="mt-2 text-[13px] text-muted">Removing a statement deletes its transactions from {monthLabel(month)}. Upload it again any time.</p>
+    </section>
   );
 }
