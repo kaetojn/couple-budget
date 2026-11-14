@@ -134,7 +134,6 @@ export function Month({ go }: { go: Go }) {
         ) : (
           <>
             <Summary month={month} totals={totals} day={day} owner={owner} search={search.trim()} narrowed={narrowed} onClear={clearFilters} />
-            <MoneyInOut month={month} />
             <TransfersLine month={month} />
             <Calendar doc={doc} tx={tx} month={month} day={day} onDay={setDay} />
 
@@ -215,6 +214,7 @@ function Summary({ month, totals, day, owner, search, narrowed, onClear }: { mon
           </ul>
         </>
       )}
+      {!narrowed && <MoneyInOut month={month} />}
     </Card>
   );
 }
@@ -684,14 +684,12 @@ function MoneyInOut({ month }: { month: string }) {
     { label: 'Pay', value: c.pay }, { label: 'Rental income', value: c.rental }, { label: 'Other', value: c.other },
   ].filter(x => x.value > 0.5);
   return (
-    <Card className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="text-muted">{c.left >= 0 ? 'Left after spending and saving' : 'Spent more than came in'}</p>
-          <p className={cn('display num text-3xl font-bold', c.left < 0 && 'text-bad')}>{c.left < 0 ? '−' : ''}{money0(Math.abs(c.left))}</p>
-        </div>
-        {c.fromPlan && <p className="max-w-56 text-right text-[12px] text-muted">No deposits in this month's statements, so this uses your expected income.</p>}
+    <div className="grid gap-3 border-t border-line pt-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold">{c.left >= 0 ? 'Left after spending and saving' : 'Spent more than came in'}</p>
+        <p className={cn('num text-xl font-bold', c.left < 0 ? 'text-bad' : 'text-good')}>{c.left < 0 ? '−' : '+'}{money0(Math.abs(c.left))}</p>
       </div>
+      {c.fromPlan && <p className="text-[12px] text-muted">No deposits in this month's statements, so money in is your expected income.</p>}
       <div className="grid gap-2.5">
         <div className="grid gap-1">
           <div className="flex justify-between text-sm"><span className="font-semibold text-good">Money in{c.fromPlan ? ' (expected)' : ''}</span><span className="num font-semibold">{money0(income)}</span></div>
@@ -713,6 +711,6 @@ function MoneyInOut({ month }: { month: string }) {
           <p className="num text-[13px] text-muted">Rent in {money0(c.property.rent)} − {c.property.costNames.length ? c.property.costNames.join(', ').toLowerCase() : 'costs'} {money0(c.property.costs)}</p>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
