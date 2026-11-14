@@ -20,7 +20,7 @@ import { catOf, merchantKey, ownerFor, spendByDay, who } from '@/lib/compute';
 import { dayLabel, dayOf, money, money0, monthKey, monthLabel, parseMonth } from '@/lib/format';
 import { sheetRows } from '@/lib/export';
 import { useLast } from '@/lib/hooks';
-import { docAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
+import { accountAtom, docAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
 import type { Category, Doc, Owner, Payer, Tx } from '@/lib/types';
 
 type OwnerFilter = 'all' | Owner;
@@ -44,6 +44,7 @@ export function Month({ go }: { go: Go }) {
   const shown = useLast(editing);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const account = useAtomValue(accountAtom);
   const tx = doc.months[month]?.tx ?? [];
   const ownerOptions = [{ value: 'all' as const, label: 'All' }, ...useOwnerOptions<Owner>(['shared', 'p1', 'p2'])];
 
@@ -101,7 +102,7 @@ export function Month({ go }: { go: Go }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <MonthSwitcher />
         <div className="flex gap-2">
-          {tx.length > 0 && !demo && <Button onClick={exportSheet} busy={exporting}><LuSheet />Export</Button>}
+          {tx.length > 0 && !demo && account?.sheets !== false && <Button onClick={exportSheet} busy={exporting}><LuSheet />Export</Button>}
           <Button variant="primary" onClick={() => setImporting(true)}><LuUpload />Add statements</Button>
         </div>
       </div>

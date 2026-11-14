@@ -7,7 +7,7 @@ A budgeting app for two people. Upload each partner's monthly statements, let Cl
 | Part | Where | What it does |
 |---|---|---|
 | Web app | `src/`, deployed to GitHub Pages by `.github/workflows/deploy.yml` | React, TypeScript, Tailwind CSS |
-| Backend | `worker/worker.js`, a Cloudflare Worker | Checks the passcode, holds the Claude API key, writes to Google Sheets, stores the household's data in Workers KV |
+| Backend | `worker/worker.js`, a Cloudflare Worker | Checks the passcode or account sign-in, holds the Claude API key, writes to Google Sheets, stores each household's data in Workers KV, and serves the Claude connector (MCP with OAuth) |
 | Sheet script | `apps-script/Code.gs` | Adds a tab to the Google Sheet for each export |
 
 Nothing financial lives in this repository. Data is stored in the Worker's KV namespace and cached in each browser.
@@ -34,4 +34,23 @@ npm run build      # production build in dist/
 
 ## Worker setup
 
-Secrets: `ANTHROPIC_API_KEY`, `APP_PASSCODE`, `SHEET_URL`, `SHEET_TOKEN`. Binding: a KV namespace named `DB`.
+Secrets: `ANTHROPIC_API_KEY`, `APP_PASSCODE`, `AUTH_SECRET`, `SHEET_URL`, `SHEET_TOKEN`, and optionally `SIGNUP_CODE`. Binding: a KV namespace named `DB`.
+
+- `AUTH_SECRET` is any long random string (`openssl rand -base64 32`). It signs sign-in tokens; changing it signs everyone out, Claude included.
+- `SIGNUP_CODE` lets new households sign up. Leave it unset to keep sign-ups closed; partners can still join with an invite code.
+- `APP_PASSCODE` opens the original household, whose data stays under the KV key `household`. Other households are stored under `hh:<id>`.
+
+### Accounts
+
+| KV key | Holds |
+| --- | --- |
+| `user:<email>` | Account: name, salted PBKDF2 password hash, household id, token version |
+| `meta:<household>` | Members and the current invite code |
+| `invite:<code>` | Household id, expires after 7 days |
+| `fail:<ip>` | Failed sign-in count, expires after 15 minutes |
+
+Sign-in tokens are HMAC-signed and carry their own expiry (app sessions 90 days, connector access 1 hour, refresh 60 days), so nothing waits on KV replication. "Sign out everywhere" and password changes bump the account's token version, which ends every session and the Claude connection.
+
+### Claude connector
+
+The connector lives at `https://couple-budget.kaetojn.workers.dev/mcp` (MCP over HTTP, JSON responses). OAuth 2.1 with PKCE, dynamic client registration and protected-resource metadata are served from the same Worker. Tools: `get_overview`, `list_categories`, `list_transactions`, `add_transactions`, `update_transaction`, `set_budget`, `get_bills`, `update_account`.

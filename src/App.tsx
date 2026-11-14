@@ -96,7 +96,7 @@ export default function App() {
       {session.demo && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-brand-soft px-4 py-2 text-center text-sm font-medium text-brand">
           You are looking at a sample household. Nothing is saved.
-          <Button size="sm" variant="primary" onClick={leaveDemo}>Enter passcode</Button>
+          <Button size="sm" variant="primary" onClick={leaveDemo}>Sign in</Button>
         </div>
       )}
 

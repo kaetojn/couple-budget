@@ -7,12 +7,16 @@ export class ApiError extends Error {
   }
 }
 
+/** Signed-in accounts hold a token starting "cb1."; anything else is the shared household passcode. */
+export const isAccount = (credential: string) => credential.startsWith('cb1.');
+
 async function post(path: string, passcode: string, body?: unknown): Promise<any> {
   let res: Response;
+  const auth: Record<string, string> = !passcode ? {} : isAccount(passcode) ? { authorization: `Bearer ${passcode}` } : { 'x-app-passcode': passcode };
   try {
     res = await fetch(WORKER + path, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-app-passcode': passcode },
+      headers: { 'content-type': 'application/json', ...auth },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -21,7 +25,8 @@ async function post(path: string, passcode: string, body?: unknown): Promise<any
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message =
-      res.status === 401 ? 'That passcode is not right.'
+      res.status === 401 && json?.error?.message ? json.error.message
+      : res.status === 401 ? 'That passcode is not right.'
       : res.status === 404 || (path === '/check' && res.status === 400) ? 'The Worker is running old code. Paste the latest worker.js into Cloudflare and deploy.'
       : json?.error?.message ?? `Request failed (${res.status})`;
     throw new ApiError(res.status, message);
@@ -29,8 +34,19 @@ async function post(path: string, passcode: string, body?: unknown): Promise<any
   return json;
 }
 
+export interface Member { email: string; name: string }
+export interface CheckResult { household: string; mode: 'account' | 'passcode'; user: Member | null; members: Member[]; sheets: boolean; signup: boolean }
+interface SignedIn { token: string; user: Member }
+
 export const api = {
-  check: (passcode: string) => post('/check', passcode),
+  // An older Worker answers with only { ok: true }; treat that as the original passcode household.
+  check: async (passcode: string): Promise<CheckResult> => ({ household: 'legacy', mode: 'passcode', user: null, members: [], sheets: true, signup: false, ...(await post('/check', passcode)) }),
+  login: (email: string, password: string) => post('/auth/login', '', { email, password }) as Promise<SignedIn>,
+  signup: (body: { email: string; password: string; name: string; invite?: string; signupCode?: string }) => post('/auth/signup', '', body) as Promise<SignedIn>,
+  claim: (passcode: string, body: { email: string; password: string; name: string }) => post('/account/claim', passcode, body) as Promise<SignedIn>,
+  invite: (credential: string) => post('/account/invite', credential) as Promise<{ code: string; expires: string }>,
+  changePassword: (credential: string, current: string, next: string) => post('/account/password', credential, { current, next }) as Promise<{ token: string }>,
+  signOutEverywhere: (credential: string) => post('/account/signout-everywhere', credential),
   load: async (passcode: string) => (await post('/load', passcode)).data as unknown,
   save: (passcode: string, data: unknown) => post('/save', passcode, { data }),
   sheet: (passcode: string, payload: { tabName: string; rows: unknown[][]; boldRows: number[] }) => post('/sheet', passcode, payload),

@@ -15,6 +15,7 @@ import { docAtom, eraseDevice, lock, sessionAtom, toast, updateDoc } from '@/lib
 import { REGIONS, type Region } from '@/lib/tax';
 import type { Arrangement, Settings as SettingsType, SplitMethod } from '@/lib/types';
 import { IncomeField } from './PayFields';
+import { AccountSection, ClaudeSection } from './AccountSection';
 
 export function Settings(_: { go: Go }) {
   const doc = useAtomValue(docAtom);
@@ -92,6 +93,10 @@ export function Settings(_: { go: Go }) {
           </Card>
         </section>
       )}
+
+      <AccountSection />
+
+      <ClaudeSection />
 
       <section>
         <SectionTitle>Your data</SectionTitle>

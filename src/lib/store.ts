@@ -1,5 +1,5 @@
 import { atom, getDefaultStore } from 'jotai';
-import { api, ApiError } from './api';
+import { api, ApiError, type CheckResult } from './api';
 import { monthsWithData } from './compute';
 import { defaultDoc, migrate } from './defaults';
 import { monthKey } from './format';
@@ -12,6 +12,8 @@ const DOC_KEY = 'coupleBudget.v2';
 const PASS_KEY = 'coupleBudget.pass';
 /** Set while this device has changes the cloud has not received yet. */
 const DIRTY_KEY = 'coupleBudget.unsynced';
+/** Which household the local copy belongs to. */
+const HH_KEY = 'coupleBudget.household';
 const isDirty = () => { try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch { return false; } };
 const setDirty = (on: boolean) => { try { on ? localStorage.setItem(DIRTY_KEY, '1') : localStorage.removeItem(DIRTY_KEY); } catch { /* ignore */ } };
 
@@ -144,17 +146,50 @@ export async function pull(quiet = false) {
   }
 }
 
-export async function unlock(passcode: string) {
-  await api.check(passcode);
-  try { localStorage.setItem(PASS_KEY, passcode); } catch { /* ignore */ }
-  store.set(docAtom, readLocal());
-  patchSession({ passcode, demo: false });
+export const accountAtom = atom<CheckResult | null>(null);
+
+/**
+ * Signs in with the household passcode or an account token. The local copy belongs to one household,
+ * so signing in to a different household on this device starts from a clean slate.
+ */
+export async function unlock(credential: string) {
+  const info = await api.check(credential);
+  let local = readLocal();
+  try {
+    const before = localStorage.getItem(HH_KEY);
+    if (before !== info.household) {
+      if (before !== null || info.household !== 'legacy') {
+        local = defaultDoc();
+        localStorage.setItem(DOC_KEY, JSON.stringify(local));
+        setDirty(false);
+      }
+      localStorage.setItem(HH_KEY, info.household);
+    }
+    localStorage.setItem(PASS_KEY, credential);
+  } catch { /* ignore */ }
+  store.set(docAtom, local);
+  store.set(accountAtom, info);
+  patchSession({ passcode: credential, demo: false });
   await pull();
+}
+
+/** Swaps the passcode for an account sign-in on this device (same household, so data stays). */
+export function setCredential(credential: string) {
+  try { localStorage.setItem(PASS_KEY, credential); } catch { /* ignore */ }
+  patchSession({ passcode: credential });
+  void refreshAccount();
+}
+
+export async function refreshAccount() {
+  const { passcode } = store.get(sessionAtom);
+  if (!passcode) return;
+  try { store.set(accountAtom, await api.check(passcode)); } catch { /* shown elsewhere */ }
 }
 
 export function lock() {
   flush();
   synced = false;
+  store.set(accountAtom, null);
   try { localStorage.removeItem(PASS_KEY); } catch { /* ignore */ }
   patchSession({ passcode: '', demo: false, sync: 'idle' });
 }
@@ -172,6 +207,6 @@ export function leaveDemo() {
 }
 
 export function eraseDevice() {
-  try { localStorage.removeItem(DOC_KEY); localStorage.removeItem(PASS_KEY); localStorage.removeItem('coupleBudget.v1'); localStorage.removeItem('coupleBudget.cur'); localStorage.removeItem(DIRTY_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(DOC_KEY); localStorage.removeItem(PASS_KEY); localStorage.removeItem('coupleBudget.v1'); localStorage.removeItem('coupleBudget.cur'); localStorage.removeItem(DIRTY_KEY); localStorage.removeItem(HH_KEY); } catch { /* ignore */ }
   location.reload();
 }
