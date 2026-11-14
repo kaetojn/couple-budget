@@ -6,7 +6,7 @@ import { Card, Field, SectionTitle } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/controls';
 import { Avatar } from '@/components/ui/misc';
 import { api, isAccount, WORKER } from '@/lib/api';
-import { accountAtom, docAtom, lock, sessionAtom, toast, setCredential } from '@/lib/store';
+import { accountAtom, docAtom, leaveDemo, lock, sessionAtom, setCredential, toast } from '@/lib/store';
 
 function CopyField({ value, label }: { value: string; label: string }) {
   const [done, setDone] = useState(false);
@@ -23,7 +23,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
 
 /** Logins for the household: create one from the passcode, invite the partner, change the password. */
 export function AccountSection() {
-  const { passcode } = useAtomValue(sessionAtom);
+  const { passcode, demo } = useAtomValue(sessionAtom);
   const info = useAtomValue(accountAtom);
   const doc = useAtomValue(docAtom);
   const account = isAccount(passcode);
@@ -59,6 +59,18 @@ export function AccountSection() {
       toast('Password changed. Other devices and Claude will need to sign in again.');
     });
   };
+
+  if (demo) {
+    return (
+      <section>
+        <SectionTitle>Accounts</SectionTitle>
+        <Card className="grid gap-3">
+          <p className="text-sm">This is the sample household, so there is nothing to sign in to here. To create your login, go to the sign-in screen, choose <strong>Email</strong>, then <strong>Create an account</strong>, and use <strong>Our passcode</strong>. You can do that before setting anything up.</p>
+          <Button variant="primary" className="justify-self-start" onClick={leaveDemo}><LuKeyRound />Go to sign in</Button>
+        </Card>
+      </section>
+    );
+  }
 
   return (
     <section>

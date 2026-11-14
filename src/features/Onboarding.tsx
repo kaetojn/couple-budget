@@ -11,11 +11,11 @@ import { MoneyInput, Segmented, Select, Slider, TextInput } from '@/components/u
 import { Avatar, Progress } from '@/components/ui/misc';
 import { cn } from '@/lib/cn';
 import { ARRANGEMENTS, METHODS } from '@/lib/defaults';
-import { money, money0, pct } from '@/lib/format';
+import { money, money0, monthLabel, pct } from '@/lib/format';
 import { allocation, applySplit, billPayment, breakdownAdvice, planOf, splitText } from '@/lib/plan';
 import { isSupported, REGIONS, TAX_YEAR, type Region } from '@/lib/tax';
 import { IncomeField, PaySchedulePicker } from './PayFields';
-import { docAtom, monthAtom, toast, updateDoc } from '@/lib/store';
+import { docAtom, importAtom, monthAtom, store, toast, updateDoc } from '@/lib/store';
 import type { Arrangement, PersonId, Settings, SplitMethod } from '@/lib/types';
 
 type Step = 'names' | 'setup' | 'where' | 'income' | 'pay' | 'split' | 'plan' | 'done';
@@ -36,6 +36,27 @@ export function Onboarding({ go }: { go: Go }) {
   const n1 = s.p1 || 'First partner';
   const n2 = s.p2 || 'Second partner';
   const plan = planOf(doc, month);
+  // Transactions already saved before setup (earlier imports or testing). Setup starts blank unless the couple keeps them.
+  const earlier = Object.entries(doc.months).filter(([, m]) => m?.tx?.length).map(([k]) => k).sort();
+  const earlierCount = earlier.reduce((n, k) => n + doc.months[k].tx.length, 0);
+  const [fresh, setFresh] = useState(true);
+
+  function finish(upload: boolean) {
+    updateDoc(d => {
+      if (earlier.length && fresh) {
+        d.months = {};
+        d.snapshots = {};
+        d.accounts = [];
+        for (const b of d.bills) b.paid = {};
+      }
+      d.settings = applySplit({ ...d.settings, onboarded: true });
+    });
+    toast('Setup saved');
+    if (upload) {
+      store.set(importAtom, true);
+      go('month');
+    } else go('home');
+  }
 
   function next(e: FormEvent) {
     e.preventDefault();
@@ -47,12 +68,7 @@ export function Onboarding({ go }: { go: Go }) {
     if (step === 'income' && !(s.inc1 + s.inc2 > 0)) problem = 'Enter at least one income to continue.';
     setError(problem);
     if (problem) return;
-    if (step === 'done') {
-      set({ onboarded: true });
-      toast('Setup saved');
-      go('home');
-      return;
-    }
+    if (step === 'done') return finish(true);
     setDir(1);
     setIndex(i => i + 1);
   }
@@ -174,7 +190,13 @@ export function Onboarding({ go }: { go: Go }) {
     done: (
       <>
         <span className="grid size-14 animate-pop place-items-center rounded-full bg-good text-3xl text-white"><LuCheck /></span>
-        <Head title={`You are set, ${n1} and ${n2}`} text="Your home page is ready. Add statements each month and it fills in with what you spent." />
+        <Head title={`You are set, ${n1} and ${n2}`} text="Last step: add this month's statements. Each of you can upload PDFs or banking app screenshots, and the app sorts every transaction." />
+        {earlier.length > 0 && (
+          <div className="grid gap-2 rounded-2xl bg-canvas p-3">
+            <p className="text-sm">This household already has <strong>{earlierCount} transactions</strong> from {monthLabel(earlier[0])}{earlier.length > 1 ? ` to ${monthLabel(earlier[earlier.length - 1])}` : ''}, probably from earlier testing.</p>
+            <Segmented size="sm" value={fresh ? 'fresh' : 'keep'} onChange={v => setFresh(v === 'fresh')} options={[{ value: 'fresh', label: 'Start fresh' }, { value: 'keep', label: 'Keep them' }]} />
+          </div>
+        )}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2">
           <dt className="text-muted">Setup</dt><dd className="font-medium">{ARRANGEMENTS[s.arrangement].label}</dd>
           {s.arrangement !== 'joint' && <><dt className="text-muted">Shared costs</dt><dd className="num font-medium">{splitText(s)}, {METHODS[s.splitMethod].toLowerCase()}</dd></>}
@@ -192,10 +214,20 @@ export function Onboarding({ go }: { go: Go }) {
         <form onSubmit={next} className="stagger grid gap-4">
           {body[step]}
           {error && <p className="text-sm font-semibold text-bad" role="alert">{error}</p>}
-          <div className="flex justify-between gap-3 pt-1">
-            {index > 0 ? <Button onClick={() => { setDir(-1); setError(''); setIndex(i => i - 1); }}>Back</Button> : <span />}
-            <Button type="submit" variant="primary" size="lg">{step === 'done' ? 'Open my home page' : 'Continue'}</Button>
-          </div>
+          {step === 'done' ? (
+            <div className="grid gap-2 pt-1">
+              <Button type="submit" variant="primary" size="lg">Upload statements</Button>
+              <div className="flex justify-between gap-2">
+                <Button onClick={() => { setDir(-1); setError(''); setIndex(i => i - 1); }}>Back</Button>
+                <Button variant="ghost" onClick={() => finish(false)}>Skip for now</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between gap-3 pt-1">
+              {index > 0 ? <Button onClick={() => { setDir(-1); setError(''); setIndex(i => i - 1); }}>Back</Button> : <span />}
+              <Button type="submit" variant="primary" size="lg">Continue</Button>
+            </div>
+          )}
         </form>
       </Card>
     </div>

@@ -12,7 +12,7 @@ type Mode = 'passcode' | 'signin' | 'signup';
 /** The first screen: the household passcode, or an account. Nothing loads until one of them checks out. */
 export function Lock() {
   const [mode, setMode] = useState<Mode>('passcode');
-  const [how, setHow] = useState<'invite' | 'new'>('invite');
+  const [how, setHow] = useState<'passcode' | 'invite' | 'new'>('passcode');
   const [f, setF] = useState({ pass: '', email: '', password: '', name: '', invite: '', signupCode: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -33,9 +33,12 @@ export function Lock() {
         await unlock(token);
         toast('Signed in');
       } else {
-        const { token } = await api.signup({ email: f.email, password: f.password, name: f.name, ...(how === 'invite' ? { invite: f.invite } : { signupCode: f.signupCode }) });
+        // With the household passcode, the login is added to the existing household and its data.
+        const { token } = how === 'passcode'
+          ? await api.claim(f.pass, { email: f.email, password: f.password, name: f.name })
+          : await api.signup({ email: f.email, password: f.password, name: f.name, ...(how === 'invite' ? { invite: f.invite } : { signupCode: f.signupCode }) });
         await unlock(token);
-        toast(how === 'invite' ? 'You joined your partner\'s household' : 'Your household is ready');
+        toast(how === 'passcode' ? 'Login created. Use it next time instead of the passcode.' : how === 'invite' ? 'You joined your partner\'s household' : 'Your household is ready');
       }
     } catch (err) {
       setError((err as Error).message);
@@ -47,7 +50,7 @@ export function Lock() {
   const titles: Record<Mode, [string, string]> = {
     passcode: ['Enter your passcode', 'The one you two share. It is checked once, then remembered on this device.'],
     signin: ['Sign in', 'With the email and password you set up in Settings.'],
-    signup: ['Create your account', how === 'invite' ? 'Join your partner with the invite code from their Settings.' : 'Start a new household. You need a sign-up code.'],
+    signup: ['Create your account', how === 'passcode' ? 'Add a login to the household you already share a passcode for. Your data stays as it is.' : how === 'invite' ? 'Join your partner with the invite code from their Settings.' : 'Start a new household. You need a sign-up code.'],
   };
 
   return (
@@ -66,15 +69,17 @@ export function Lock() {
             <>
               {mode === 'signup' && (
                 <>
-                  <Segmented size="sm" value={how} onChange={setHow} options={[{ value: 'invite', label: 'Join my partner' }, { value: 'new', label: 'New household' }]} />
+                  <Segmented size="sm" value={how} onChange={setHow} options={[{ value: 'passcode', label: 'Our passcode' }, { value: 'invite', label: 'Invite code' }, { value: 'new', label: 'New' }]} />
                   <Field label="Your first name"><TextInput autoComplete="given-name" value={f.name} onChange={set('name')} required /></Field>
                 </>
               )}
               <Field label="Email"><TextInput type="email" autoComplete="username" autoFocus value={f.email} onChange={set('email')} required /></Field>
               <Field label="Password" hint={mode === 'signup' ? 'At least 8 characters.' : undefined}><TextInput type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={f.password} onChange={set('password')} required minLength={mode === 'signup' ? 8 : undefined} /></Field>
-              {mode === 'signup' && (how === 'invite'
-                ? <Field label="Invite code"><TextInput autoCapitalize="characters" value={f.invite} onChange={set('invite')} required /></Field>
-                : <Field label="Sign-up code"><TextInput value={f.signupCode} onChange={set('signupCode')} required /></Field>)}
+              {mode === 'signup' && (how === 'passcode'
+                ? <Field label="Household passcode"><TextInput type="password" autoComplete="off" value={f.pass} onChange={set('pass')} required /></Field>
+                : how === 'invite'
+                  ? <Field label="Invite code"><TextInput autoCapitalize="characters" value={f.invite} onChange={set('invite')} required /></Field>
+                  : <Field label="Sign-up code"><TextInput value={f.signupCode} onChange={set('signupCode')} required /></Field>)}
             </>
           )}
           {error && <p className="text-sm font-semibold text-bad" role="alert">{error}</p>}

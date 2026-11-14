@@ -36,6 +36,8 @@ const initial = readLocal();
 export const docAtom = atom<Doc>(initial);
 export const sessionAtom = atom<Session>({ passcode: readPass(), demo: false, loading: false, sync: 'idle' });
 export const monthAtom = atom<string>(latestMonth(initial));
+/** Whether the statement upload sheet is open, so other screens (like the end of onboarding) can open it. */
+export const importAtom = atom(false);
 export interface ToastAction { label: string; run: () => void }
 export const toastAtom = atom<{ id: number; text: string; action?: ToastAction }[]>([]);
 

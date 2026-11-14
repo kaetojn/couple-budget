@@ -20,7 +20,7 @@ import { catOf, merchantKey, ownerFor, spendByDay, who } from '@/lib/compute';
 import { dayLabel, dayOf, money, money0, monthKey, monthLabel, parseMonth } from '@/lib/format';
 import { sheetRows } from '@/lib/export';
 import { useLast } from '@/lib/hooks';
-import { accountAtom, docAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
+import { accountAtom, docAtom, importAtom, monthAtom, sessionAtom, snapshotNetWorth, toast, updateDoc } from '@/lib/store';
 import type { Category, Doc, Owner, Payer, Tx } from '@/lib/types';
 
 type OwnerFilter = 'all' | Owner;
@@ -42,7 +42,7 @@ export function Month({ go }: { go: Go }) {
   const search = useDeferredValue(query);
   const [editing, setEditing] = useState<Tx | null>(null);
   const shown = useLast(editing);
-  const [importing, setImporting] = useState(false);
+  const [importing, setImporting] = useAtom(importAtom);
   const [exporting, setExporting] = useState(false);
   const account = useAtomValue(accountAtom);
   const tx = doc.months[month]?.tx ?? [];
