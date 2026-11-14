@@ -1,3 +1,4 @@
+import { emptyInvestments } from './invest';
 import type { AccountType, Arrangement, Bill, Category, Doc, PayFreq, Scope, SplitMethod } from './types';
 import { uid } from './format';
 
@@ -127,20 +128,30 @@ export const guessIcon = (name: string) => ICON_GUESSES.find(([re]) => re.test(n
 export function migrate(raw: any): Doc {
   const base = defaultDoc();
   if (!raw || typeof raw !== 'object') return base;
+  // Start from everything saved, so a section this function does not know about is never dropped.
   const doc: Doc = {
     ...base,
+    ...raw,
+    version: 2,
     settings: { ...base.settings, ...(raw.settings ?? {}), pay: { ...base.settings.pay, ...(raw.settings?.pay ?? {}) }, region: raw.settings?.region ?? 'ON' },
     rules: Array.isArray(raw.rules) ? raw.rules : [],
     months: raw.months ?? {},
     bills: Array.isArray(raw.bills) ? raw.bills : base.bills,
     accounts: Array.isArray(raw.accounts) ? raw.accounts : [],
     snapshots: raw.snapshots ?? {},
+    ...(raw.investments && typeof raw.investments === 'object'
+      ? { investments: { ...emptyInvestments(), ...raw.investments, accounts: Array.isArray(raw.investments.accounts) ? raw.investments.accounts : [] } }
+      : {}),
     updatedAt: raw.updatedAt,
   };
+  // Fields from the first version, folded into months below.
+  delete (doc as any).history;
+  delete (doc as any).cur;
   if (Array.isArray(raw.categories) && raw.categories.length) {
     doc.categories = raw.categories.map((c: any, i: number) => ({ ...c, icon: c.icon ?? guessIcon(c.name), color: c.color ?? COLORS[i % COLORS.length] }));
   }
   if (!doc.categories.some(c => c.name === JOINT_TOPUP)) doc.categories.push(defaultCategories().find(c => c.name === JOINT_TOPUP)!);
+  if (!Array.isArray(raw.categories) || !raw.categories.length) doc.categories = base.categories;
   if (raw.version !== 2) {
     for (const [m, h] of Object.entries<any>(raw.history ?? {})) doc.months[m] = { tx: h.tx ?? [] };
     if (raw.cur?.tx?.length) doc.months[raw.cur.month] = { tx: raw.cur.tx };
