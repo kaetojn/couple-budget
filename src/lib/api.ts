@@ -57,12 +57,68 @@ export const api = {
     const text: string = (json.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
     return { text, truncated: json.stop_reason === 'max_tokens' };
   },
+
+  /**
+   * Asks Claude for a JSON answer. A reply that is cut off or unreadable is tried once more with
+   * twice the room and a request to be brief, before giving up with a clear message.
+   */
+  async claudeJson<T>(passcode: string, content: unknown[], system: string, maxTokens: number): Promise<T> {
+    let out = await api.claude(passcode, content, system, maxTokens);
+    try {
+      if (!out.truncated) return parseJson<T>(out.text);
+    } catch { /* retry below */ }
+    const brief = [...content, { type: 'text', text: 'Keep every item to one short sentence. Reply with the JSON object only.' }];
+    out = await api.claude(passcode, brief, system, maxTokens * 2);
+    try {
+      return parseJson<T>(out.text);
+    } catch {
+      throw new Error(out.truncated ? 'The answer was too long to finish. Try again.' : 'Claude did not return a readable result. Try again.');
+    }
+  },
 };
 
-/** Pulls the first JSON object out of a model reply. */
+/**
+ * Pulls the first JSON object out of a model reply. If the reply was cut off part way, the open
+ * strings, arrays and objects are closed so everything before the cut is still usable.
+ */
 export function parseJson<T>(text: string): T {
   const a = text.indexOf('{');
+  if (a < 0) throw new Error(text.trim() ? `Claude replied without a result: "${text.trim().slice(0, 120)}"` : 'Claude sent an empty reply. Try again.');
   const b = text.lastIndexOf('}');
-  if (a < 0 || b < 0) throw new Error('The reply did not contain a result');
-  return JSON.parse(text.slice(a, b + 1)) as T;
+  if (b > a) {
+    try { return JSON.parse(text.slice(a, b + 1)) as T; } catch { /* fall through to repair */ }
+  }
+  return JSON.parse(repairJson(text.slice(a))) as T;
+}
+
+/** Closes whatever a cut-off JSON reply left open, dropping a half-written last item. */
+export function repairJson(s: string): string {
+  const stack: string[] = [];
+  let inString = false, escaped = false, lastSafe = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') { stack.pop(); if (!stack.length) return s.slice(0, i + 1); }
+    // A comma at array or object level marks the end of a complete item.
+    if (!inString && (c === ',' || c === '[' || c === '{')) lastSafe = c === ',' ? i : i + 1;
+  }
+  // Cut back to the last complete item, then close everything still open.
+  let out = s.slice(0, lastSafe).replace(/[,\s]+$/, '');
+  const open: string[] = [];
+  let str = false, esc = false;
+  for (const c of out) {
+    if (str) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') str = false; continue; }
+    if (c === '"') str = true;
+    else if (c === '{' || c === '[') open.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') open.pop();
+  }
+  out = out.replace(/:\s*$/, ': null');
+  return out + open.reverse().join('');
 }

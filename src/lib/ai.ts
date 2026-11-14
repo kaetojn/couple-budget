@@ -145,8 +145,7 @@ ${(() => {
 Tailor the advice to how they manage money and to each partner's income. Never frame shared costs as one partner owing the other; gaps are closed by topping up the joint account. Use real numbers. Be specific and plain, no jargon.
 Reply with JSON only:
 {"headline":"one sentence on their overall position","wins":["up to 3 things going well"],"watch":["up to 3 things to keep an eye on"],"actions":["up to 3 concrete next steps"]}`;
-  const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken household finance coach. You output strict JSON.', 1500);
-  const data = parseJson<Partial<Checkup>>(out.text);
+  const data = await api.claudeJson<Partial<Checkup>>(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken household finance coach. You output strict JSON.', 3000);
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 3) : []);
   return { headline: String(data.headline ?? ''), wins: list(data.wins), watch: list(data.watch), actions: list(data.actions), at: new Date().toISOString() };
 }
@@ -160,8 +159,7 @@ Reply with JSON only, no prose:
 Use the market price per unit; if only a market value is shown, divide it by the quantity.
 
 ${text.slice(0, 60000)}`;
-  const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a careful data clerk. You output strict JSON.', 8000);
-  const data = parseJson<{ accounts?: any[] }>(out.text);
+  const data = await api.claudeJson<{ accounts?: any[] }>(passcode, [{ type: 'text', text: prompt }], 'You are a careful data clerk. You output strict JSON.', 8000);
   const today = new Date().toLocaleDateString('en-CA');
   return (data.accounts ?? []).filter(a => a && Array.isArray(a.holdings)).map(a => ({
     id: uid(), name: String(a.name || 'Investment account'), type: accountType(String(a.type || a.name || '')), owner, ...(a.number ? { number: String(a.number) } : {}),
@@ -193,7 +191,6 @@ ${lines}
 
 Rules: be educational and specific to these holdings. Comment on diversification, the mix against their target, single-company concentration, fund fees (name any fund you know to have a high management expense ratio and the typical cost of a broad index ETF), account types (TFSA, RRSP, FHSA), currency, and how to direct the monthly amount to rebalance without selling. Do not recommend individual stocks, do not predict markets or suggest timing, and do not suggest buying something because it recently went up. Plain language, short sentences.
 Reply with JSON only: {"summary":"2 sentences","strengths":["..."],"watch":["..."],"next":["concrete step"]} with 2 to 4 items in each list.`;
-  const out = await api.claude(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken, fee-conscious investing educator, not an advisor. You output strict JSON.', 1800);
-  const r = parseJson<PortfolioCheckup>(out.text);
+  const r = await api.claudeJson<PortfolioCheckup>(passcode, [{ type: 'text', text: prompt }], 'You are a plain-spoken, fee-conscious investing educator, not an advisor. You output strict JSON.', 3000);
   return { summary: String(r.summary || ''), strengths: (r.strengths ?? []).map(String), watch: (r.watch ?? []).map(String), next: (r.next ?? []).map(String) };
 }
