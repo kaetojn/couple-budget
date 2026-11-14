@@ -184,3 +184,74 @@ export function withoutDuplicates(existing: Tx[], incoming: Tx[]): Tx[] {
 
 export const freqWord = (f: PayFreq) => ({ weekly: 'every week', biweekly: 'every two weeks', semimonthly: 'twice a month', monthly: 'once a month' })[f];
 export const chequesPerYear = PER_YEAR;
+
+/**
+ * Files imported transactions under the month of their own date, so a statement that runs
+ * Sep 15 to Oct 14 lands in both months. Earlier copies of the same statements are replaced
+ * everywhere, and anything already saved from another source is skipped. Returns counts per month.
+ */
+export function fileByDate(d: Doc, found: Tx[], fallback: string): Record<string, { added: number; skipped: number }> {
+  const sources = new Set(found.map(t => t.source));
+  for (const m of Object.keys(d.months)) {
+    const tx = d.months[m]?.tx ?? [];
+    if (tx.some(t => sources.has(t.source))) d.months[m] = { ...d.months[m], tx: tx.filter(t => !sources.has(t.source)) };
+  }
+  const byMonth = new Map<string, Tx[]>();
+  for (const t of found) {
+    const m = /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date.slice(0, 7) : fallback;
+    byMonth.set(m, [...(byMonth.get(m) ?? []), t]);
+  }
+  const out: Record<string, { added: number; skipped: number }> = {};
+  for (const [m, list] of [...byMonth].sort(([a], [b]) => a.localeCompare(b))) {
+    const prior = d.months[m]?.tx ?? [];
+    const fresh = withoutDuplicates(prior, list);
+    d.months[m] = { ...d.months[m], tx: [...prior, ...fresh].sort((a, b) => a.date.localeCompare(b.date)) };
+    out[m] = { added: fresh.length, skipped: list.length - fresh.length };
+  }
+  return out;
+}
+
+export interface Coverage {
+  key: string;
+  name: string;
+  payer: Tx['paidBy'];
+  from: number;
+  to: number;
+  /** Days of the month this account or statement should cover but no upload does yet. */
+  gap?: { from: number; to: number; before: boolean };
+}
+
+/**
+ * Which days of a month each account's uploads cover. A statement that crosses into the next or
+ * previous month is a billing-cycle statement, so a missing part of the month means the
+ * neighbouring statement has not been added yet.
+ */
+export function coverage(doc: Doc, month: string, today = new Date().toLocaleDateString('en-CA')): Coverage[] {
+  const tx = doc.months[month]?.tx ?? [];
+  if (!tx.length) return [];
+  const last = daysIn(month);
+  const lastKnown = today.startsWith(month) ? Math.max(1, dayOf(today) - 3) : today < month ? 0 : last;
+  const keyOf = (t: Tx) => t.account ?? `src:${t.source}`;
+  const neighbour = (offset: number) => {
+    const [y, m] = month.split('-').map(Number);
+    const n = new Date(y, m - 1 + offset, 1);
+    return doc.months[`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`]?.tx ?? [];
+  };
+  const prev = new Set(neighbour(-1).map(keyOf));
+  const next = new Set(neighbour(1).map(keyOf));
+  const groups = new Map<string, Tx[]>();
+  for (const t of tx) if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) groups.set(keyOf(t), [...(groups.get(keyOf(t)) ?? []), t]);
+  const list = [...groups].map(([key, items]) => {
+    const days = items.map(t => dayOf(t.date));
+    const acc = items[0].account ? doc.accounts.find(a => a.id === items[0].account) : undefined;
+    const name = acc ? (acc.last4 && !acc.name.includes(acc.last4) ? `${acc.name} ••${acc.last4}` : acc.name) : items[0].source;
+    return { key, name, payer: items[0].paidBy, from: Math.min(...days), to: Math.max(...days) } as Coverage;
+  });
+  // Another upload from the same person that reaches the missing days fills the gap.
+  const covered = (c: Coverage, from: number, to: number) => list.some(o => o !== c && o.payer === c.payer && o.from <= from + 4 && o.to >= to - 4);
+  for (const c of list) {
+    if (prev.has(c.key) && c.to < Math.min(last, lastKnown) - 4 && !covered(c, c.to + 1, Math.min(last, lastKnown))) c.gap = { from: c.to + 1, to: last, before: false };
+    else if (next.has(c.key) && c.from > 5 && !covered(c, 1, c.from - 1)) c.gap = { from: 1, to: c.from - 1, before: true };
+  }
+  return list;
+}

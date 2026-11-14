@@ -12,7 +12,7 @@ import { Avatar, Count, PERSON_COLOR, useName, useOwnerOptions } from '@/compone
 import { Sheet } from '@/components/ui/sheet';
 import { extractStatement, isImage, type StatementAccount } from '@/lib/ai';
 import { upsertAccount } from '@/lib/accounts';
-import { detectRecurring, withoutDuplicates } from '@/lib/detect';
+import { coverage, detectRecurring, fileByDate } from '@/lib/detect';
 import { PayPrompts } from './Findings';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -417,30 +417,28 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     }
     setBusy(false);
     if (!found.length) return;
-    const sources = new Set(found.map(t => t.source));
-    let added = 0;
+    let filed: Record<string, { added: number; skipped: number }> = {};
     updateDoc(d => {
       for (const a of accounts) {
         const id = upsertAccount(d, a.account, a.payer);
         if (id) for (const t of a.tx) t.account = id;
       }
       if (accounts.some(a => a.account?.balance !== undefined)) snapshotNetWorth(d);
-      // A statement read again replaces its earlier copy; anything already saved from another source is skipped.
-      const prior = (d.months[target]?.tx ?? []).filter(t => !sources.has(t.source));
-      const fresh = withoutDuplicates(prior, found);
-      added = fresh.length;
-      d.months[target] = { ...d.months[target], tx: [...prior, ...fresh].sort((a, b) => a.date.localeCompare(b.date)) };
+      filed = fileByDate(d, found, target);
     });
-    setMonth(target);
-    const skipped = found.length - added;
-    toast(`${added} transactions added to ${monthLabel(target)}${skipped ? `, ${skipped} already there` : ''}`);
+    const months = Object.entries(filed).filter(([, v]) => v.added > 0);
+    const skipped = Object.values(filed).reduce((n, v) => n + v.skipped, 0);
+    // Land on the most recent month that got something.
+    setMonth(months.map(([m]) => m).sort().pop() ?? target);
+    const where = months.sort(([a], [b]) => b.localeCompare(a)).map(([m, v]) => `${v.added} to ${monthLabel(m)}`).join(', ');
+    toast(`${where ? `Added ${where}` : 'Nothing new to add'}${skipped ? `. ${skipped} were already there` : ''}`);
     if (state.every(j => j.status === 'done')) { setFiles({ p1: [], p2: [], joint: [] }); setJobs([]); onClose(); }
   }
 
   return (
     <Sheet open={open} onClose={busy ? () => {} : onClose} title="Add statements" footer={<Button variant="primary" size="lg" className="flex-1" busy={busy} disabled={!count || demo} onClick={analyze}>{busy ? 'Reading' : count ? `Read ${count} file${count > 1 ? 's' : ''}` : 'Choose files first'}</Button>}>
       {demo && <p className="rounded-2xl bg-brand-soft p-3 text-sm font-medium text-brand">Reading statements uses Claude, which is off in the sample household.</p>}
-      <Field label="Budget month"><TextInput type="month" value={target} onChange={e => e.target.value && setTarget(e.target.value)} /></Field>
+      <Field label="Mostly for" hint="Each transaction is filed under the month of its own date, so a statement that runs Sep 15 to Oct 14 lands in both. This month helps read dates printed without a year."><TextInput type="month" value={target} onChange={e => e.target.value && setTarget(e.target.value)} /></Field>
       <div className="grid gap-3">
         {zones.map(payer => (
           <div key={payer} className="rounded-2xl border border-line p-2">
@@ -476,45 +474,63 @@ function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   );
 }
 
-/** The statements and screenshot batches uploaded for a month, each removable, with Undo. */
+/** The statements and screenshot batches uploaded for a month, with the days they cover. Each is removable, with Undo. */
 function Statements({ month }: { month: string }) {
   const doc = useAtomValue(docAtom);
   const [sure, setSure] = useState(false);
   const tx = doc.months[month]?.tx ?? [];
+  const short = (d: number) => `${parseMonth(month).toLocaleDateString('en-CA', { month: 'short' })} ${d}`;
   const sources = [...tx.reduce((m, t) => {
-    const g = m.get(t.source) ?? { source: t.source, count: 0, out: 0, payers: new Set<Payer>() };
+    const g = m.get(t.source) ?? { source: t.source, count: 0, out: 0, payers: new Set<Payer>(), from: 31, to: 1 };
     g.count++;
     if (t.amount > 0) g.out += t.amount;
     g.payers.add(t.paidBy);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) { g.from = Math.min(g.from, dayOf(t.date)); g.to = Math.max(g.to, dayOf(t.date)); }
     return m.set(t.source, g);
-  }, new Map<string, { source: string; count: number; out: number; payers: Set<Payer> }>()).values()];
+  }, new Map<string, { source: string; count: number; out: number; payers: Set<Payer>; from: number; to: number }>()).values()];
+  const gaps = coverage(doc, month).filter(c => c.gap);
+  const elsewhere = (source: string) => Object.keys(doc.months).filter(m => m !== month && doc.months[m]?.tx?.some(t => t.source === source)).sort();
 
-  function remove(which: (t: Tx) => boolean, message: string) {
-    const removed = (doc.months[month]?.tx ?? []).filter(which);
-    updateDoc(d => { d.months[month] = { ...d.months[month], tx: (d.months[month]?.tx ?? []).filter(t => !which(t)) }; });
+  /** Removes matching transactions from the given months and offers to put them back. */
+  function remove(months: string[], which: (t: Tx) => boolean, message: string) {
+    const removed = Object.fromEntries(months.map(m => [m, (doc.months[m]?.tx ?? []).filter(which)]));
+    updateDoc(d => { for (const m of months) d.months[m] = { ...d.months[m], tx: (d.months[m]?.tx ?? []).filter(t => !which(t)) }; });
     setSure(false);
     toast(message, {
       label: 'Undo',
-      run: () => updateDoc(d => { d.months[month] = { ...d.months[month], tx: [...(d.months[month]?.tx ?? []), ...removed].sort((a, b) => a.date.localeCompare(b.date)) }; }),
+      run: () => updateDoc(d => { for (const m of months) d.months[m] = { ...d.months[m], tx: [...(d.months[m]?.tx ?? []), ...removed[m]].sort((a, b) => a.date.localeCompare(b.date)) }; }),
     });
   }
 
   return (
     <section>
-      <SectionTitle action={<Button size="sm" variant={sure ? 'danger' : 'ghost'} onClick={() => (sure ? remove(() => true, `Cleared ${monthLabel(month)}`) : setSure(true))}><LuTrash2 />{sure ? 'Tap again to clear the month' : 'Clear month'}</Button>}>Uploaded statements</SectionTitle>
+      <SectionTitle action={<Button size="sm" variant={sure ? 'danger' : 'ghost'} onClick={() => (sure ? remove([month], () => true, `Cleared ${monthLabel(month)}`) : setSure(true))}><LuTrash2 />{sure ? 'Tap again to clear the month' : 'Clear month'}</Button>}>Uploaded statements</SectionTitle>
+      {gaps.length > 0 && (
+        <div className="mb-3 grid gap-1.5 rounded-2xl bg-warn/8 p-3 text-sm">
+          {gaps.map(c => (
+            <p key={c.key} className="flex gap-2"><LuTriangleAlert className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <span><strong>{c.name}</strong> covers {short(c.from)}–{c.to}. Add the {c.gap!.before ? 'previous' : 'next'} statement for {short(c.gap!.from)}–{c.gap!.to}, so {monthLabel(month)} is complete.</span>
+            </p>
+          ))}
+        </div>
+      )}
       <Card className="divide-y divide-line p-0">
-        {sources.map(g => (
-          <div key={g.source} className="flex items-center gap-3 px-4 py-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-lg text-muted">{/^Screenshots/.test(g.source) ? <LuImage aria-hidden /> : <LuFileText aria-hidden />}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{g.source}</p>
-              <p className="flex items-center gap-1.5 text-[13px] text-muted">{[...g.payers].map(p => <Avatar key={p} id={p} size={16} />)}{g.count} transaction{g.count > 1 ? 's' : ''} · {money0(g.out)} out</p>
+        {sources.map(g => {
+          const other = elsewhere(g.source);
+          return (
+            <div key={g.source} className="flex items-center gap-3 px-4 py-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-lg text-muted">{/^Screenshots/.test(g.source) ? <LuImage aria-hidden /> : <LuFileText aria-hidden />}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{g.source}</p>
+                <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted">{[...g.payers].map(p => <Avatar key={p} id={p} size={16} />)}<span>{short(g.from)}{g.to !== g.from ? `–${g.to}` : ''} · {g.count} transaction{g.count > 1 ? 's' : ''} · {money0(g.out)} out</span></p>
+                {other.length > 0 && <p className="text-[13px] text-muted">Also has transactions in {other.map(m => monthLabel(m)).join(' and ')}</p>}
+              </div>
+              <Button size="icon" variant="ghost" className="size-9" aria-label={`Remove ${g.source}`} onClick={() => remove([month, ...other], t => t.source === g.source, `Removed ${g.source}${other.length ? ` from ${other.length + 1} months` : ''}`)}><LuTrash2 /></Button>
             </div>
-            <Button size="icon" variant="ghost" className="size-9" aria-label={`Remove ${g.source}`} onClick={() => remove(t => t.source === g.source, `Removed ${g.source}`)}><LuTrash2 /></Button>
-          </div>
-        ))}
+          );
+        })}
       </Card>
-      <p className="mt-2 text-[13px] text-muted">Removing a statement deletes its transactions from {monthLabel(month)}. Upload it again any time.</p>
+      <p className="mt-2 text-[13px] text-muted">Removing a statement deletes all of its transactions, in every month it covers. Upload it again any time.</p>
     </section>
   );
 }

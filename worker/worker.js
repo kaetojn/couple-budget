@@ -522,12 +522,11 @@ const TOOLS = [
   },
   {
     name: 'add_transactions',
-    description: 'Adds transactions read from a statement or screenshots to a month. Transactions already saved (same date, amount, payer and merchant) are skipped, so overlapping screenshots are safe.',
+    description: 'Adds transactions read from a statement or screenshots. Each is filed under the month of its own date, so a statement running Sep 15 to Oct 14 lands in both months. Transactions already saved (same date, amount, payer and merchant) are skipped, so overlapping statements and screenshots are safe.',
     inputSchema: {
       type: 'object',
-      required: ['month', 'paid_by', 'transactions'],
+      required: ['paid_by', 'transactions'],
       properties: {
-        month: monthArg,
         paid_by: payerArg,
         source: { type: 'string', description: 'Where these came from, e.g. "TD Visa statement, Oct 2026"' },
         transactions: {
@@ -750,14 +749,16 @@ async function runTool(name, a, env, hh) {
   }
 
   if (name === 'add_transactions') {
-    const month = checkMonth(a.month);
     if (!['p1', 'p2', 'joint'].includes(a.paid_by)) throw new Error('paid_by must be p1, p2 or joint.');
     if (!Array.isArray(a.transactions) || !a.transactions.length) throw new Error('Send at least one transaction.');
-    const existing = doc.months[month]?.tx || [];
     const key = t => `${t.date}|${(+t.amount).toFixed(2)}|${t.paidBy}|${merchantKey(t.desc)}`;
-    const seen = new Set(existing.map(key));
+    const seen = new Map();
+    const seenIn = m => {
+      if (!seen.has(m)) seen.set(m, new Set((doc.months[m]?.tx || []).map(key)));
+      return seen.get(m);
+    };
     const source = String(a.source || 'Added from Claude').slice(0, 80);
-    const added = [], unknown = new Set();
+    const added = {}, unknown = new Set();
     let skipped = 0;
     for (const x of a.transactions) {
       const amount = +x.amount;
@@ -769,16 +770,20 @@ async function runTool(name, a, env, hh) {
         owner: cat.scope === 'p1' || cat.scope === 'p2' ? cat.scope : x.shared ? 'shared' : ownerFor(cat, a.paid_by), source, exclude: false,
       };
       for (const rule of doc.rules) if (normalize(t.desc).includes(rule.match)) { t.category = rule.category; t.owner = rule.owner === 'shared' ? 'shared' : a.paid_by === 'joint' ? 'shared' : a.paid_by; }
-      if (seen.has(key(t))) { skipped++; continue; }
-      seen.add(key(t));
-      added.push(t);
+      const month = t.date.slice(0, 7);
+      if (seenIn(month).has(key(t))) { skipped++; continue; }
+      seenIn(month).add(key(t));
+      (added[month] = added[month] || []).push(t);
     }
-    doc.months[month] = { ...(doc.months[month] || {}), tx: [...existing, ...added].sort((x, y) => x.date.localeCompare(y.date)) };
+    for (const [m, list] of Object.entries(added)) {
+      doc.months[m] = { ...(doc.months[m] || {}), tx: [...(doc.months[m]?.tx || []), ...list].sort((x, y) => x.date.localeCompare(y.date)) };
+    }
     await saveDoc(env, hh, doc);
     return {
-      month, added: added.length, skipped_as_duplicates_or_invalid: skipped,
+      added_by_month: Object.fromEntries(Object.entries(added).map(([m, list]) => [m, list.length])),
+      skipped_as_duplicates_or_invalid: skipped,
       ...(unknown.size ? { filed_under_other: [...unknown], note: 'These category names did not exist, so those transactions went to Other. Use list_categories and update_transaction to fix them.' } : {}),
-      summary: monthSummary(doc, month),
+      summaries: Object.keys(added).sort().map(m => monthSummary(doc, m)),
     };
   }
 
