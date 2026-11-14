@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from 'jotai';
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { LuArrowLeftRight, LuArrowRight, LuChevronDown, LuChevronRight, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
+import { LuFiles, LuArrowLeftRight, LuArrowRight, LuChevronDown, LuChevronRight, LuCircleCheck, LuFileText, LuImage, LuLoaderCircle, LuRepeat, LuSearch, LuSheet, LuTrash2, LuTriangleAlert, LuUpload, LuX } from 'react-icons/lu';
 import type { Go } from '@/App';
 import { SplitBar } from '@/components/charts/charts';
 import { IconTile } from '@/components/icons';
@@ -45,6 +45,8 @@ export function Month({ go }: { go: Go }) {
   const [editing, setEditing] = useState<Tx | null>(null);
   const shown = useLast(editing);
   const [importing, setImporting] = useAtom(importAtom);
+  const [managing, setManaging] = useState(false);
+  const gaps = useMemo(() => coverage(doc, month).filter(c => c.gap).length, [doc, month]);
   const [exporting, setExporting] = useState(false);
   const account = useAtomValue(accountAtom);
   const tx = doc.months[month]?.tx ?? [];
@@ -103,9 +105,15 @@ export function Month({ go }: { go: Go }) {
     <div className="stagger grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <MonthSwitcher />
-        <div className="flex gap-2">
-          {tx.length > 0 && !demo && account?.sheets !== false && <Button onClick={exportSheet} busy={exporting}><LuSheet />Export</Button>}
-          <Button variant="primary" onClick={() => setImporting(true)}><LuUpload />Add statements</Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          {tx.length > 0 && !demo && account?.sheets !== false && <Button onClick={exportSheet} busy={exporting} aria-label="Export to Google Sheets" className="shrink-0"><LuSheet /><span className="hidden sm:inline">Export</span></Button>}
+          {tx.length > 0 && !demo && (
+            <Button onClick={() => setManaging(true)} className="relative flex-1 whitespace-nowrap sm:flex-none">
+              <LuFiles /><span className="sm:hidden">Statements</span><span className="hidden sm:inline">Manage statements</span>
+              {gaps > 0 && <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-warn text-[11px] font-bold text-white" aria-label={`${gaps} gaps in coverage`}>{gaps}</span>}
+            </Button>
+          )}
+          <Button variant="primary" onClick={() => setImporting(true)} className="flex-1 whitespace-nowrap sm:flex-none"><LuUpload /><span className="sm:hidden">Upload</span><span className="hidden sm:inline">Add statements</span></Button>
         </div>
       </div>
 
@@ -159,7 +167,9 @@ export function Month({ go }: { go: Go }) {
         )}
       </div>
 
-      {tx.length > 0 && !demo && <Statements month={month} />}
+      <Sheet open={managing} onClose={() => setManaging(false)} title={`Statements, ${monthLabel(month)}`}>
+        <Statements month={month} />
+      </Sheet>
 
       <Sheet open={!!editing} onClose={() => setEditing(null)} title="Transaction">
         {shown && <TxEditor key={shown.id} tx={shown} month={month} onDone={() => setEditing(null)} />}
@@ -507,10 +517,10 @@ function Statements({ month }: { month: string }) {
   }
 
   return (
-    <section>
-      <SectionTitle action={<Button size="sm" variant={sure ? 'danger' : 'ghost'} onClick={() => (sure ? remove([month], () => true, `Cleared ${monthLabel(month)}`) : setSure(true))}><LuTrash2 />{sure ? 'Tap again to clear the month' : 'Clear month'}</Button>}>Uploaded statements</SectionTitle>
+    <>
+      {!sources.length && <p className="text-muted">No statements for {monthLabel(month)}.</p>}
       {gaps.length > 0 && (
-        <div className="mb-3 grid gap-1.5 rounded-2xl bg-warn/8 p-3 text-sm">
+        <div className="grid gap-1.5 rounded-2xl bg-warn/8 p-3 text-sm">
           {gaps.map(c => (
             <p key={c.key} className="flex gap-2"><LuTriangleAlert className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span><strong>{c.name}</strong> covers {short(c.from)}–{c.to}. Add the {c.gap!.before ? 'previous' : 'next'} statement for {short(c.gap!.from)}–{c.gap!.to}, so {monthLabel(month)} is complete.</span>
@@ -526,7 +536,7 @@ function Statements({ month }: { month: string }) {
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-lg text-muted">{/^Screenshots/.test(g.source) ? <LuImage aria-hidden /> : <LuFileText aria-hidden />}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{g.source}</p>
-                <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted">{[...g.payers].map(p => <Avatar key={p} id={p} size={16} />)}<span>{short(g.from)}{g.to !== g.from ? `–${g.to}` : ''} · {g.count} transaction{g.count > 1 ? 's' : ''} · {money0(g.out)} out</span></p>
+                <p className="flex items-center gap-1.5 text-[13px] text-muted">{[...g.payers].map(p => <Avatar key={p} id={p} size={16} />)}<span className="min-w-0 truncate">{short(g.from)}{g.to !== g.from ? `–${g.to}` : ''} · {g.count} transaction{g.count > 1 ? 's' : ''} · {money0(g.out)} out</span></p>
                 {other.length > 0 && <p className="text-[13px] text-muted">Also has transactions in {other.map(m => monthLabel(m)).join(' and ')}</p>}
               </div>
               <Button size="icon" variant="ghost" className="size-9" aria-label={`Remove ${g.source}`} onClick={() => remove([month, ...other], t => t.source === g.source, `Removed ${g.source}${other.length ? ` from ${other.length + 1} months` : ''}`)}><LuTrash2 /></Button>
@@ -534,8 +544,11 @@ function Statements({ month }: { month: string }) {
           );
         })}
       </Card>
-      <p className="mt-2 text-[13px] text-muted">Removing a statement deletes all of its transactions, in every month it covers. Upload it again any time.</p>
-    </section>
+      {sources.length > 0 && <p className="text-[13px] text-muted">Removing a statement deletes all of its transactions, in every month it covers. Upload it again any time.</p>}
+      {sources.length > 0 && (
+        <Button variant={sure ? 'danger' : 'ghost'} className="justify-self-start" onClick={() => (sure ? remove([month], () => true, `Cleared ${monthLabel(month)}`) : setSure(true))}><LuTrash2 />{sure ? `Tap again to clear ${monthLabel(month)}` : `Clear all of ${monthLabel(month)}`}</Button>
+      )}
+    </>
   );
 }
 
