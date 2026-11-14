@@ -1,4 +1,4 @@
-// Couple Budget backend: one Cloudflare Worker, no dependencies, paste-and-deploy.
+// Couple Budget backend: one Cloudflare Worker, no dependencies. GitHub Actions deploys it when this file changes on main.
 //
 // It does four jobs:
 //   1. Keeps the Claude key and the Google Sheet connection out of the browser (/claude, /sheet).
